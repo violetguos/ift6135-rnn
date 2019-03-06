@@ -30,7 +30,16 @@ import matplotlib.pyplot as plt
 
 
 def clones(module, N):
-    "A helper function for producing N identical layers (each with their own parameters)."
+    "
+    A helper function for producing N identical layers (each with their own parameters).
+    
+    inputs: 
+        module: a pytorch nn.module
+        N (int): the number of copies of that module to return
+
+    returns:
+        a ModuleList with the copies of the module (the ModuleList is itself also a module)
+    "
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 # Problem 1
@@ -181,25 +190,21 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 """
 Implement the MultiHeadedAttention module of the transformer architecture.
 All other necessary modules have already been implemented for you.
-
 We're building a transfomer architecture for next-step prediction tasks, and 
 applying it to sequential language modelling. We use a binary "mask" to specify 
 which time-steps the model can use for the current prediction.
 This ensures that the model only attends to previous time-steps.
-
 The model first encodes inputs using the concatenation of a learned WordEmbedding 
 and a (in our case, hard-coded) PositionalEncoding.
 The word embedding maps a word's one-hot encoding into a dense real vector.
 The positional encoding 'tags' each element of an input sequence with a code that 
 identifies it's position (i.e. time-step).
-
 These encodings of the inputs are then transformed repeatedly using multiple
 copies of a TransformerBlock.
 This block consists of an application of MultiHeadedAttention, followed by a 
 standard MLP; the MLP applies *the same* mapping at every position.
 Both the attention and the MLP are applied with Resnet-style skip connections, 
 and layer normalization.
-
 The complete model consists of the embeddings, the stacked transformer blocks, 
 and a linear layer followed by a softmax.
 """
@@ -254,7 +259,7 @@ class MultiHeadedAttention(nn.Module):
         
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
-        # query, key, and value all have size: (batch_size, seq_len, self.n_units, self.d_k)
+        # query, key, and value all have size: (batch_size, seq_len, self.n_units)
         # mask has size: (batch_size, seq_len, seq_len)
         # As described in the .tex, apply input masking to the softmax 
         # generating the "attention values" (i.e. A_i in the .tex)
@@ -436,4 +441,3 @@ class MLP(nn.Module):
 
     def forward(self, x):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
-
