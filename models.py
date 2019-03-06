@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 
 
 def clones(module, N):
-    "
+    '''
     A helper function for producing N identical layers (each with their own parameters).
     
     inputs: 
@@ -39,14 +39,14 @@ def clones(module, N):
 
     returns:
         a ModuleList with the copies of the module (the ModuleList is itself also a module)
-    "
+    '''
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 # Problem 1
 class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities.
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
     """
-    emb_size:     The numvwe of units in the input embeddings
+    emb_size:     The number of units in the input embeddings
     hidden_size:  The number of hidden units per layer
     seq_len:      The length of the input sequences
     vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
@@ -57,6 +57,32 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
                   Do not apply dropout on recurrent connections.
     """
     super(RNN, self).__init__()
+    self.emb_size = emb_size
+    self.vocab_size = vocab_size
+    self.seq_len = seq_len
+    self.batch_size = batch_size
+
+    # Embedding layer
+    self.em = nn.Embedding(batch_size, emb_size)
+
+    # Let num_hidden = 3
+    self.fc1 = nn.Linear(emb_size, hidden_size)
+    self.fc2 = nn.Linear(hidden_size, hidden_size)
+    self.fc3 = nn.Linear(hidden_size, vocab_size)
+    self.drop = nn.Dropout(p=(1-dp_keep_prob))
+
+    # Next timestep
+    self.rnn1 = nn.Linear(hidden_size, hidden_size)
+    self.rnn2 = nn.Linear(hidden_size, hidden_size)
+    self.rnn3 = nn.Linear(hidden_size, hidden_size) 
+
+    # Just one hidden layer for now
+    #wy = torch.FloatTensor(emb_size, hidden_size).type(dtype)
+    #wy = Variable(wy, requires_grad=True)
+    #by = torch.zeros(1, hidden_size)
+    #by = Variable(by, requires_grad=True)
+    #init.uniform(wy, -0.1, 0.1)
+
 
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
@@ -122,6 +148,66 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
               if you are curious.
                     shape: (num_layers, batch_size, hidden_size)
     """
+    hidden_size = hidden.size()[2]
+
+    for t in range(inputs[i]):  # For each timestep
+      #for l in hidden:
+        x = self.em(inputs)
+
+        if t != 0:
+          # dropped version from current stack + non-dropped version from previous stack
+          x1 = self.fc1(x)
+          x1_no_drop = F.tanh(x1 + self.rnn1(x1_prev))
+          x1_drop = self.drop(x1) + self.rnn1(x1_prev)
+          x1_act = F.tanh(x1_drop)
+
+          x2 = self.fc2(x1_act)
+          x2_no_drop = F.tanh(x2 + self.rnn2(x2_prev))
+          x2_drop = self.drop(x2) + self.rnn2(x2_prev)
+          x2_act = F.tanh(x2_drop)
+
+          x3 = self.fc3(x2_act)
+          x3_no_drop = F.tanh(x3 + self.rnn3(x3_prev))
+          x3_drop = self.drop(x3) + self.rnn3(x3_prev)
+          x3_act = F.tanh(x3_drop)
+
+          # Copies
+          x1_prev = x1_no_drop
+          x2_prev = x2_no_drop
+          x3_prev = x3_no_drop
+
+        else: # If in first timestep
+          x1 = self.fc1(x)
+          x_drop = F.tanh(self.fc1_drop(x1))
+          x1_act = F.tanh(x1)
+
+          x2 = self.fc2(x1_act)
+          x_drop = F.tanh(self.fc2_drop(x_drop))
+          x2_act = F.tanh(x2)
+
+          x3 = self.fc3(x2_act)
+          x_drop = F.tanh(self.fc3_drop(x_drop))
+          x3_act = F.tanh(x3)
+
+          # Copies
+          x1_prev = x1
+          x2_prev = x2
+          x3_prev = x3
+
+          # Go through stack
+          #x_drop = F.tanh(self.fc1_drop(x1))
+          #x1 = F.tanh(x1)
+
+          #x2_drop = F.tanh(self.fc2_drop(x2))
+          #x2 = F.tanh(x2)
+
+          #x3_drop = F.tanh(self.fc3_drop(x3))
+          #x3 = F.tanh(x3)
+
+
+
+
+
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
