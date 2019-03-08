@@ -30,14 +30,23 @@ import matplotlib.pyplot as plt
 
 
 def clones(module, N):
-    "A helper function for producing N identical layers (each with their own parameters)."
+    "
+    A helper function for producing N identical layers (each with their own parameters).
+    
+    inputs: 
+        module: a pytorch nn.module
+        N (int): the number of copies of that module to return
+
+    returns:
+        a ModuleList with the copies of the module (the ModuleList is itself also a module)
+    "
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 # Problem 1
 class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities.
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
     """
-    emb_size:     The numvwe of units in the input embeddings
+    emb_size:     The number of units in the input embeddings
     hidden_size:  The number of hidden units per layer
     seq_len:      The length of the input sequences
     vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
@@ -64,10 +73,12 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # and compute their gradients automatically. You're not obligated to use the
     # provided clones function.
 
-  def init_weights_uniform(self):
+  def init_weights(self):
     # TODO ========================
-    # Initialize all the weights uniformly in the range [-0.1, 0.1]
-    # and all the biases to 0 (in place)
+    # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+    # and output biases to 0 (in place). The embeddings should not use a bias vector.
+    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly 
+    # in the range [-k, k] where k is the square root of 1/hidden_size
 
   def init_hidden(self):
     # TODO ========================
@@ -79,7 +90,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
   def forward(self, inputs, hidden):
     # TODO ========================
-    # Compute the forward pass, using a nested python for loops.
+    # Compute the forward pass, using nested python for loops.
     # The outer for loop should iterate over timesteps, and the 
     # inner for loop should iterate over hidden layers of the stack. 
     # 
@@ -181,25 +192,21 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 """
 Implement the MultiHeadedAttention module of the transformer architecture.
 All other necessary modules have already been implemented for you.
-
 We're building a transfomer architecture for next-step prediction tasks, and 
 applying it to sequential language modelling. We use a binary "mask" to specify 
 which time-steps the model can use for the current prediction.
 This ensures that the model only attends to previous time-steps.
-
 The model first encodes inputs using the concatenation of a learned WordEmbedding 
 and a (in our case, hard-coded) PositionalEncoding.
 The word embedding maps a word's one-hot encoding into a dense real vector.
 The positional encoding 'tags' each element of an input sequence with a code that 
 identifies it's position (i.e. time-step).
-
 These encodings of the inputs are then transformed repeatedly using multiple
 copies of a TransformerBlock.
 This block consists of an application of MultiHeadedAttention, followed by a 
 standard MLP; the MLP applies *the same* mapping at every position.
 Both the attention and the MLP are applied with Resnet-style skip connections, 
 and layer normalization.
-
 The complete model consists of the embeddings, the stacked transformer blocks, 
 and a linear layer followed by a softmax.
 """
@@ -249,12 +256,14 @@ class MultiHeadedAttention(nn.Module):
         self.n_units = n_units 
 
         # TODO: create/initialize any necessary parameters or layers
+        # Initialize all weights and biases uniformly in the range [-k, k],
+        # where k is the square root of 1/n_units.
         # Note: the only Pytorch modules you are allowed to use are nn.Linear 
         # and nn.Dropout
         
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
-        # query, key, and value all have size: (batch_size, seq_len, self.n_units, self.d_k)
+        # query, key, and value all have size: (batch_size, seq_len, self.n_units)
         # mask has size: (batch_size, seq_len, seq_len)
         # As described in the .tex, apply input masking to the softmax 
         # generating the "attention values" (i.e. A_i in the .tex)
@@ -435,5 +444,4 @@ class MLP(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        return self.w_2(self.dropout(F.relu(self.w_1(x))))
-
+return self.w_2(self.dropout(F.relu(self.w_1(x))))
