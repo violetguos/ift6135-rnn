@@ -62,19 +62,36 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.seq_len = seq_len
     self.batch_size = batch_size
 
-    # Embedding layer
+    # Embedding layer and dropout (same everywhere)
     self.em = nn.Embedding(batch_size, emb_size)
-
-    # Let num_hidden = 3
-    self.fc1 = nn.Linear(emb_size, hidden_size)
-    self.fc2 = nn.Linear(hidden_size, hidden_size)
-    self.fc3 = nn.Linear(hidden_size, vocab_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
 
+    # Account for arbitrary number of hidden layers/rnn connections
+    if num_layers == 1:
+      self.hiddens = [nn.Linear(emb_size, vocab_size)]
+      self.rnns = [nn.Linear(vocab_size, vocab_size)]
+
+    elif num_layers == 2:
+      self.hiddens = [nn.Linear(emb_size, hidden_size)
+                      nn.Linear(hidden_size, vocab_size)]
+      self.rnns = clones(nn.Linear(hidden_size, hidden_size), 2)
+
+    else:
+      self.hiddens = [nn.Linear(emb_size, hidden_size)] + 
+                     clones(nn.Linear(hidden_size, hidden_size), num_layers-2) +
+                     [nn.Linear(hidden_size, vocab_size)]
+      self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+
+    
+    # Let num_hidden = 3
+    #self.fc1 = nn.Linear(emb_size, hidden_size)
+    #self.fc2 = nn.Linear(hidden_size, hidden_size)
+    #self.fc3 = nn.Linear(hidden_size, vocab_size)
+
     # Next timestep
-    self.rnn1 = nn.Linear(hidden_size, hidden_size)
-    self.rnn2 = nn.Linear(hidden_size, hidden_size)
-    self.rnn3 = nn.Linear(hidden_size, hidden_size) 
+    #self.rnn1 = nn.Linear(hidden_size, hidden_size)
+    #self.rnn2 = nn.Linear(hidden_size, hidden_size)
+    #self.rnn3 = nn.Linear(hidden_size, hidden_size) 
 
 
     # TODO ========================
@@ -145,43 +162,36 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     """
     hidden_size = hidden.size()[2]
 
-    for t in range(inputs[i]):  # For each timestep
-      #for l in hidden:
-        x = self.em(inputs)
-        x = self.drop(x)
+    for t in range(inputs.size()[0]):  # For each timestep
+      x = self.em(inputs)
+      x = self.drop(x)
+      
+      if t != 0:
+        # dropped version from current stack + non-dropped version from previous stack
+        new_prevs = []
+        final_hidden_states = []
+        for i, hid in enumerate(self.hiddens):
+          x = hid(x)
+          x_act = F.tanh(x + self.rnns[i](prevs[i]))
+          new_prevs.append(x_act)
+          x_drop = self.drop(x_act)
+          final_hidden_states.append(x_drop)
 
-        if t != 0:
-          # dropped version from current stack + non-dropped version from previous stack
-          x1 = self.fc1(x)
-          x1_act = F.tanh(x1 + self.rnn1(x1_prev))
-          x1_drop = self.drop(x1_act)
+        prevs = new_prevs
+        x_act = torch.unsqueeze(x_act, dim=0)
+        logits = torch.cat([logits, x_act], dim=0)
 
-          x2 = self.fc1(x1_drop)
-          x2_act = F.tanh(x2 + self.rnn1(x2_prev))
-          x2_drop = self.drop(x2_act)
+      else: # If in first timestep
+        prevs = []
+        for i, hid in enumerate(self.hiddens):
+          x = hid(x)
+          x_act = F.tanh(x)
+          prevs.append(x_act)
+          x_drop = self.drop(x_act)
+        logits = torch.unsqueeze(x_act, dim=0)
 
-          x3 = self.fc1(x2_drop)
-          x3_act = F.tanh(x3 + self.rnn1(x3_prev))
-          x3_drop = self.drop(x3_act)
-
-        else: # If in first timestep
-          x1 = self.fc1(x)
-          x1_act = F.tanh(x1)
-          x1_drop = self.drop(x1_act)
-
-          x2 = self.fc2(x1_drop)
-          x2_act = F.tanh(x2)
-          x2_drop = self.drop(x2_act)
-
-          x3 = self.fc3(x2_act)
-          x3_act = F.tanh(x3)
-          x3_drop = self.drop(x3_act)
-
-        # Copies
-        x1_prev = x1_act
-        x2_prev = x2_act
-        x3_prev = x3_act
-
+      if t == inputs.size()[0]:
+       hidden = torch.cat(final_hidden_states)
 
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
