@@ -76,13 +76,6 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.rnn2 = nn.Linear(hidden_size, hidden_size)
     self.rnn3 = nn.Linear(hidden_size, hidden_size) 
 
-    # Just one hidden layer for now
-    #wy = torch.FloatTensor(emb_size, hidden_size).type(dtype)
-    #wy = Variable(wy, requires_grad=True)
-    #by = torch.zeros(1, hidden_size)
-    #by = Variable(by, requires_grad=True)
-    #init.uniform(wy, -0.1, 0.1)
-
 
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
@@ -153,59 +146,39 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     for t in range(inputs[i]):  # For each timestep
       #for l in hidden:
         x = self.em(inputs)
+        x = self.drop(x)
 
         if t != 0:
           # dropped version from current stack + non-dropped version from previous stack
           x1 = self.fc1(x)
-          x1_no_drop = F.tanh(x1 + self.rnn1(x1_prev))
-          x1_drop = self.drop(x1) + self.rnn1(x1_prev)
-          x1_act = F.tanh(x1_drop)
+          x1_act = F.tanh(x1 + self.rnn1(x1_prev))
+          x1_drop = self.drop(x1_act)
 
-          x2 = self.fc2(x1_act)
-          x2_no_drop = F.tanh(x2 + self.rnn2(x2_prev))
-          x2_drop = self.drop(x2) + self.rnn2(x2_prev)
-          x2_act = F.tanh(x2_drop)
+          x2 = self.fc1(x1_drop)
+          x2_act = F.tanh(x2 + self.rnn1(x2_prev))
+          x2_drop = self.drop(x2_act)
 
-          x3 = self.fc3(x2_act)
-          x3_no_drop = F.tanh(x3 + self.rnn3(x3_prev))
-          x3_drop = self.drop(x3) + self.rnn3(x3_prev)
-          x3_act = F.tanh(x3_drop)
-
-          # Copies
-          x1_prev = x1_no_drop
-          x2_prev = x2_no_drop
-          x3_prev = x3_no_drop
+          x3 = self.fc1(x2_drop)
+          x3_act = F.tanh(x3 + self.rnn1(x3_prev))
+          x3_drop = self.drop(x3_act)
 
         else: # If in first timestep
           x1 = self.fc1(x)
-          x_drop = F.tanh(self.fc1_drop(x1))
           x1_act = F.tanh(x1)
+          x1_drop = self.drop(x1_act)
 
-          x2 = self.fc2(x1_act)
-          x_drop = F.tanh(self.fc2_drop(x_drop))
+          x2 = self.fc2(x1_drop)
           x2_act = F.tanh(x2)
+          x2_drop = self.drop(x2_act)
 
           x3 = self.fc3(x2_act)
-          x_drop = F.tanh(self.fc3_drop(x_drop))
           x3_act = F.tanh(x3)
+          x3_drop = self.drop(x3_act)
 
-          # Copies
-          x1_prev = x1
-          x2_prev = x2
-          x3_prev = x3
-
-          # Go through stack
-          #x_drop = F.tanh(self.fc1_drop(x1))
-          #x1 = F.tanh(x1)
-
-          #x2_drop = F.tanh(self.fc2_drop(x2))
-          #x2 = F.tanh(x2)
-
-          #x3_drop = F.tanh(self.fc3_drop(x3))
-          #x3 = F.tanh(x3)
-
-
-
+        # Copies
+        x1_prev = x1_act
+        x2_prev = x2_act
+        x3_prev = x3_act
 
 
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
