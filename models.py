@@ -92,10 +92,12 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # and compute their gradients automatically. You're not obligated to use the
     # provided clones function.
 
-  def init_weights_uniform(self):
+  def init_weights(self):
     # TODO ========================
-    # Initialize all the weights uniformly in the range [-0.1, 0.1]
-    # and all the biases to 0 (in place)
+    # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+    # and output biases to 0 (in place). The embeddings should not use a bias vector.
+    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly 
+    # in the range [-k, k] where k is the square root of 1/hidden_size
 
   def init_hidden(self):
     # TODO ========================
@@ -107,7 +109,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
   def forward(self, inputs, hidden):
     # TODO ========================
-    # Compute the forward pass, using a nested python for loops.
+    # Compute the forward pass, using nested python for loops.
     # The outer for loop should iterate over timesteps, and the 
     # inner for loop should iterate over hidden layers of the stack. 
     # 
@@ -313,6 +315,8 @@ class MultiHeadedAttention(nn.Module):
         self.n_units = n_units 
 
         # TODO: create/initialize any necessary parameters or layers
+        # Initialize all weights and biases uniformly in the range [-k, k],
+        # where k is the square root of 1/n_units.
         # Note: the only Pytorch modules you are allowed to use are nn.Linear 
         # and nn.Dropout
         
