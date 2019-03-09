@@ -58,12 +58,15 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     """
     super(RNN, self).__init__()
     self.emb_size = emb_size
+    self.hidden_size = hidden_size
     self.vocab_size = vocab_size
     self.seq_len = seq_len
+    self.num_layers = num_layers
     self.batch_size = batch_size
 
     # Embedding layer and dropout (same everywhere)
-    self.em = nn.Embedding(batch_size, emb_size)
+    self.em = nn.Embedding(vocab_size, emb_size)
+    print('embedding size from init:', batch_size, emb_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
 
     # Account for arbitrary number of hidden layers/rnn connections
@@ -73,13 +76,14 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
       self.rnns = [nn.Linear(vocab_size, vocab_size)]
 
     elif num_layers == 2:
-      self.hiddens = [nn.Linear(emb_size, hidden_size)
+      self.hiddens = [nn.Linear(emb_size, hidden_size),
                       nn.Linear(hidden_size, vocab_size)]
+      print('size of rnn:', hidden_size, hidden_size)
       self.rnns = clones(nn.Linear(hidden_size, hidden_size), 2)
 
     else:
-      self.hiddens = [nn.Linear(emb_size, hidden_size)] + 
-                     clones(nn.Linear(hidden_size, hidden_size), num_layers-2) +
+      self.hiddens = [nn.Linear(emb_size, hidden_size)] + \
+                      clones(nn.Linear(hidden_size, hidden_size), num_layers-2) + \
                      [nn.Linear(hidden_size, vocab_size)]
       self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers)
 
@@ -167,15 +171,23 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     hidden_size = hidden.size()[2]
 
     for t in range(inputs.size()[0]):  # For each timestep
+      print('inputs size:', inputs.size())
       x = self.em(inputs)
       x = self.drop(x)
+      print('embeddings size:', x.size())
       
       if t != 0:
+        print('In next timestep.')
         # dropped version from current stack + non-dropped version from previous stack
         new_prevs = []
         final_hidden_states = []
         for i, hid in enumerate(self.hiddens):
+          print('Layer {}: {}'.format(i, hid))
+          print('size of x:', x.size())
           x = hid(x)
+          print('size of x hid:', x.size())
+          print('size of prev:', prevs[i].size())
+          print('size of prev rnn:', self.rnns[i](prevs[i]).size())
           x_act = F.tanh(x + self.rnns[i](prevs[i]))
           new_prevs.append(x_act)
           x_drop = self.drop(x_act)
@@ -186,10 +198,13 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         logits = torch.cat([logits, x_act], dim=0)
 
       else: # If in first timestep
+        print('In first timestep.')
         prevs = []
         for i, hid in enumerate(self.hiddens):
+          print('Layer', i)
           x = hid(x)
           x_act = F.tanh(x)
+          print('x_act size:', x_act.size())
           prevs.append(x_act)
           x_drop = self.drop(x_act)
         logits = torch.unsqueeze(x_act, dim=0)
@@ -241,6 +256,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def init_weights_uniform(self):
     # TODO ========================
+    pass
 
   def init_hidden(self):
     # TODO ========================
