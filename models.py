@@ -68,6 +68,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
     # Account for arbitrary number of hidden layers/rnn connections
     if num_layers == 1:
+      # Kind of weird, since we don't use hidden_size
       self.hiddens = [nn.Linear(emb_size, vocab_size)]
       self.rnns = [nn.Linear(vocab_size, vocab_size)]
 
@@ -81,18 +82,6 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
                      clones(nn.Linear(hidden_size, hidden_size), num_layers-2) +
                      [nn.Linear(hidden_size, vocab_size)]
       self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-
-    
-    # Let num_hidden = 3
-    #self.fc1 = nn.Linear(emb_size, hidden_size)
-    #self.fc2 = nn.Linear(hidden_size, hidden_size)
-    #self.fc3 = nn.Linear(hidden_size, vocab_size)
-
-    # Next timestep
-    #self.rnn1 = nn.Linear(hidden_size, hidden_size)
-    #self.rnn2 = nn.Linear(hidden_size, hidden_size)
-    #self.rnn3 = nn.Linear(hidden_size, hidden_size) 
-
 
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
@@ -116,13 +105,28 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly 
     # in the range [-k, k] where k is the square root of 1/hidden_size
 
+    # Initialize the embedding and output weights uniformly
+    nn.init.uniform_(self.em.weight, -0.1, 0.1)
+    nn.init.uniform_(self.hiddens[-1].weight, -0.1, 0.1)
+
+    # Initialize output biases to 0
+    nn.init.zeros_(self.hiddens[-1].bias)
+
+    # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
+    for i, hid in self.hiddens:
+      nn.init.uniform_(hid.weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.rnns[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(hid.bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.rnns[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+
   def init_hidden(self):
     # TODO ========================
     # initialize the hidden states to zero
     """
     This is used for the first mini-batch in an epoch, only.
     """
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    states = Variable(torch.zeros(self.num_layers, self.batch_size, self.hidden_size))
+    return states # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
   def forward(self, inputs, hidden):
     # TODO ========================
