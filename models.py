@@ -64,6 +64,12 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.num_layers = num_layers
     self.batch_size = batch_size
 
+    # Use the GPU if you have one
+    if torch.cuda.is_available():
+        self.device = torch.device("cuda") 
+    else:
+        self.device = torch.device("cpu")
+
     # Embedding layer and dropout (same everywhere)
     self.em = nn.Embedding(vocab_size, emb_size)
     print('embedding size from init:', batch_size, emb_size)
@@ -177,8 +183,11 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     hidden_size = hidden.size()[2]
 
     for t in range(inputs.size()[0]):  # For each timestep
+      print('TIMESTEP', t)
       print('inputs size:', inputs.size())
-      x = self.em(inputs)
+      one_input = inputs[t]
+      print('one input', one_input)
+      x = self.em(one_input)
       x = self.drop(x)
       print('embeddings size:', x.size())
       
@@ -195,17 +204,21 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           print('size of prev:', prevs[i].size())
           print('size of prev rnn:', self.rnns[i](prevs[i]).size())
           x_act = torch.tanh(x + self.rnns[i](prevs[i]))
+          print('size of x_act:', x_act.size())
           new_prevs.append(x_act)
           x_drop = self.drop(x_act)
           final_hidden_states.append(x_drop)
 
         prevs = new_prevs
-        x_act = torch.unsqueeze(x_act, dim=0)
-        logits = torch.cat([logits, x_act], dim=0)
+        #x_act = torch.unsqueeze(x_act, dim=0)
+        #logits = torch.cat([logits, x_act], dim=0)
+        logits.append(x_act)
+        print('logits after append:', len(logits), x_act.size())
 
       else: # If in first timestep
         print('In first timestep.')
         prevs = []
+        logits = []
         for i, hid in enumerate(self.hiddens):
           print('Layer', i)
           x = hid(x)
@@ -213,12 +226,24 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           print('x_act size:', x_act.size())
           prevs.append(x_act)
           x_drop = self.drop(x_act)
-        logits = torch.unsqueeze(x_act, dim=0)
+        #logits = torch.unsqueeze(x_act, dim=0)
+        #logits = x_act
+        logits.append(x_act)
 
-      if t == inputs.size()[0]:
-       hidden = torch.cat(final_hidden_states)
+      if t == inputs.size()[0]-1:
+        print('Final timestep.')
+        hidden = torch.cat(final_hidden_states)
+        logits = torch.cat(logits)
 
+    print('---')
+    print('seq len:', self.seq_len)
+    print('batch_size:', self.batch_size)
+    print('vocab_size:', self.vocab_size)
+    print('logits size:', logits.size())
+    print('hidden size:', hidden.size())
+    #print('logits view size:', logits.view(self.seq_len, self.batch_size, self.vocab_size))
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
+    #return logits, hidden
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
