@@ -174,7 +174,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
       print('TIMESTEP', t)
       print('inputs size:', inputs.size())
       one_input = inputs[t]
-      print('one input')
+      print('one input', one_input)
       x = self.em(one_input)
       x = self.drop(x)
       print('embeddings size:', x.size())
@@ -191,7 +191,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           print('size of x hid:', x.size())
           print('size of prev:', prevs[i].size())
           print('size of prev rnn:', self.rnns[i](prevs[i]).size())
-          x_act = F.tanh(x + self.rnns[i](prevs[i]))
+          x_act = torch.tanh(x + self.rnns[i](prevs[i]))
           print('size of x_act:', x_act.size())
           new_prevs.append(x_act)
           x_drop = self.drop(x_act)
@@ -210,7 +210,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         for i, hid in enumerate(self.hiddens):
           print('Layer', i)
           x = hid(x)
-          x_act = F.tanh(x)
+          x_act = torch.tanh(x)
           print('x_act size:', x_act.size())
           prevs.append(x_act)
           x_drop = self.drop(x_act)
