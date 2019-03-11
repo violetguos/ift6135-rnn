@@ -180,7 +180,6 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
               if you are curious.
                     shape: (num_layers, batch_size, hidden_size)
     """
-    hidden_size = hidden.size()[2]
 
     for t in range(inputs.size()[0]):  # For each timestep
       print('TIMESTEP', t)
