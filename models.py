@@ -87,6 +87,12 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
                      [nn.Linear(hidden_size, vocab_size)]
       self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers)
 
+    # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
+    hiddens2 = [hid.to(self.device) for hid in self.hiddens]
+    self.hiddens = hiddens2
+    rnns2 = [rnn.to(self.device) for rnn in self.rnns]
+    self.rnns = rnns2
+
     # TODO ========================
     # Initialization of the parameters of the recurrent and fc layers. 
     # Your implementation should support any number of stacked hidden layers 
@@ -188,7 +194,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           print('size of x hid:', x.size())
           print('size of prev:', prevs[i].size())
           print('size of prev rnn:', self.rnns[i](prevs[i]).size())
-          x_act = F.tanh(x + self.rnns[i](prevs[i]))
+          x_act = torch.tanh(x + self.rnns[i](prevs[i]))
           new_prevs.append(x_act)
           x_drop = self.drop(x_act)
           final_hidden_states.append(x_drop)
@@ -203,7 +209,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         for i, hid in enumerate(self.hiddens):
           print('Layer', i)
           x = hid(x)
-          x_act = F.tanh(x)
+          x_act = torch.tanh(x)
           print('x_act size:', x_act.size())
           prevs.append(x_act)
           x_drop = self.drop(x_act)
