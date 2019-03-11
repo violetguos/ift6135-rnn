@@ -64,6 +64,12 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.num_layers = num_layers
     self.batch_size = batch_size
 
+    # Use the GPU if you have one
+    if torch.cuda.is_available():
+        self.device = torch.device("cuda") 
+    else:
+        self.device = torch.device("cpu")
+
     # Embedding layer and dropout (same everywhere)
     self.em = nn.Embedding(vocab_size, emb_size)
     print('embedding size from init:', batch_size, emb_size)
@@ -208,7 +214,8 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         prevs = []
         logits = []
         for i, hid in enumerate(self.hiddens):
-          print('Layer', i)
+          hid = hid.to(self.device)
+          print('Layer {}: {}'.format(i, hid))
           x = hid(x)
           x_act = torch.tanh(x)
           print('x_act size:', x_act.size())
