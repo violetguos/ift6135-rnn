@@ -85,18 +85,20 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
       self.hiddens = [nn.Linear(emb_size, hidden_size),
                       nn.Linear(hidden_size, vocab_size)]
       print('size of rnn:', hidden_size, hidden_size)
-      self.rnns = clones(nn.Linear(hidden_size, hidden_size), 2)
+      #self.rnns = clones(nn.Linear(hidden_size, hidden_size), 2)
+      self.rnns = [nn.Linear(hidden_size, hidden_size),
+                   nn.Linear(vocab_size, vocab_size)]
 
     else:
       self.hiddens = [nn.Linear(emb_size, hidden_size)] + \
-                      clones(nn.Linear(hidden_size, hidden_size), num_layers-2) + \
+                      list(clones(nn.Linear(hidden_size, hidden_size), num_layers-2)) + \
                      [nn.Linear(hidden_size, vocab_size)]
       self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers)
 
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
-    hiddens2 = [hid.to(self.device) for hid in self.hiddens]
+    hiddens2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens])
     self.hiddens = hiddens2
-    rnns2 = [rnn.to(self.device) for rnn in self.rnns]
+    rnns2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns])
     self.rnns = rnns2
 
     # TODO ========================
@@ -207,6 +209,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           new_prevs.append(x_act)
           x_drop = self.drop(x_act)
           final_hidden_states.append(x_drop)
+          print('final hidden states after append:', len(final_hidden_states), x_drop.size())
 
         prevs = new_prevs
         #x_act = torch.unsqueeze(x_act, dim=0)
@@ -231,7 +234,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
       if t == inputs.size()[0]-1:
         print('Final timestep.')
-        hidden = torch.cat(final_hidden_states)
+        hidden = torch.cat(Final_hidden_states[:-1])  # Remove last (output), we don't care about it here
         logits = torch.cat(logits)
 
     print('---')
