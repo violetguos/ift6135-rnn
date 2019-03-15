@@ -243,6 +243,7 @@ def ptb_iterator(raw_data, batch_size, num_steps):
         data[i] = raw_data[batch_len * i:batch_len * (i + 1)]
 
     epoch_size = (batch_len - 1) // num_steps
+    print('epoch size:', epoch_size)
 
     if epoch_size == 0:
         raise ValueError("epoch_size == 0, decrease batch_size or num_steps")
@@ -377,6 +378,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
 
     # LOOP THROUGH MINIBATCHES
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
+        print("STEP {}".format(step))
         if args.model == 'TRANSFORMER':
             batch = Batch(torch.from_numpy(x).long().to(device))
             model.zero_grad()

@@ -70,29 +70,33 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     else:
         self.device = torch.device("cpu")
 
-    # Embedding layer and dropout (same everywhere)
+    # Embedding layer, input to hidden, output, and dropout (same everywhere)
     self.em = nn.Embedding(vocab_size, emb_size)
-    print('embedding size from init:', batch_size, emb_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
+    self.inp = nn.Linear(emb_size, hidden_size)
+    self.out = nn.Linear(hidden_size, vocab_size)
 
     # Account for arbitrary number of hidden layers/rnn connections
     if num_layers == 1:
       # Kind of weird, since we don't use hidden_size
-      self.hiddens = [nn.Linear(emb_size, vocab_size)]
-      self.rnns = [nn.Linear(vocab_size, vocab_size)]
+      #self.hiddens = [nn.Linear(emb_size, vocab_size)]
+      #self.rnns = [nn.Linear(vocab_size, vocab_size)]
 
-    elif num_layers == 2:
-      self.hiddens = [nn.Linear(emb_size, hidden_size),
-                      nn.Linear(hidden_size, vocab_size)]
+    #elif num_layers == 2:
+      #self.hiddens = [nn.Linear(emb_size, hidden_size),
+      #                nn.Linear(hidden_size, vocab_size)]
+      self.hiddens = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
       print('size of rnn:', hidden_size, hidden_size)
       #self.rnns = clones(nn.Linear(hidden_size, hidden_size), 2)
-      self.rnns = [nn.Linear(hidden_size, hidden_size),
-                   nn.Linear(vocab_size, vocab_size)]
+      #self.rnns = [nn.Linear(hidden_size, hidden_size),
+      #             nn.Linear(vocab_size, vocab_size)]
+      self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
 
     else:
-      self.hiddens = [nn.Linear(emb_size, hidden_size)] + \
-                      list(clones(nn.Linear(hidden_size, hidden_size), num_layers-2)) + \
-                     [nn.Linear(hidden_size, vocab_size)]
+      #self.hiddens = [nn.Linear(emb_size, hidden_size)] + \
+      #                list(clones(nn.Linear(hidden_size, hidden_size), num_layers-2)) + \
+      #               [nn.Linear(hidden_size, vocab_size)]
+      self.hiddens = clones(nn.Linear(hidden_size, hidden_size), num_layers)
       self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers)
 
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
@@ -191,6 +195,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
       x = self.em(one_input)
       x = self.drop(x)
       print('embeddings size:', x.size())
+      x = self.inp(x)
       
       if t != 0:
         print('In next timestep.')
@@ -208,14 +213,15 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           print('size of x_act:', x_act.size())
           new_prevs.append(x_act)
           x_drop = self.drop(x_act)
+          x_out = self.out(x_drop)
           final_hidden_states.append(x_drop)
           print('final hidden states after append:', len(final_hidden_states), x_drop.size())
 
         prevs = new_prevs
         #x_act = torch.unsqueeze(x_act, dim=0)
         #logits = torch.cat([logits, x_act], dim=0)
-        logits.append(x_act)
-        print('logits after append:', len(logits), x_act.size())
+        logits.append(x_out)
+        print('logits after append:', len(logits), x_out.size())
 
       else: # If in first timestep
         print('In first timestep.')
@@ -228,13 +234,14 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           print('x_act size:', x_act.size())
           prevs.append(x_act)
           x_drop = self.drop(x_act)
+          x_out = self.out(x_drop)
         #logits = torch.unsqueeze(x_act, dim=0)
         #logits = x_act
-        logits.append(x_act)
+        logits.append(x_out)
 
       if t == inputs.size()[0]-1:
         print('Final timestep.')
-        hidden = torch.cat(Final_hidden_states[:-1])  # Remove last (output), we don't care about it here
+        hidden = torch.cat(final_hidden_states)
         logits = torch.cat(logits)
 
     print('---')
