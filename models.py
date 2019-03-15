@@ -78,24 +78,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
     # Account for arbitrary number of hidden layers/rnn connections
     if num_layers == 1:
-      # Kind of weird, since we don't use hidden_size
-      #self.hiddens = [nn.Linear(emb_size, vocab_size)]
-      #self.rnns = [nn.Linear(vocab_size, vocab_size)]
-
-    #elif num_layers == 2:
-      #self.hiddens = [nn.Linear(emb_size, hidden_size),
-      #                nn.Linear(hidden_size, vocab_size)]
       self.hiddens = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      print('size of rnn:', hidden_size, hidden_size)
-      #self.rnns = clones(nn.Linear(hidden_size, hidden_size), 2)
-      #self.rnns = [nn.Linear(hidden_size, hidden_size),
-      #             nn.Linear(vocab_size, vocab_size)]
       self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-
     else:
-      #self.hiddens = [nn.Linear(emb_size, hidden_size)] + \
-      #                list(clones(nn.Linear(hidden_size, hidden_size), num_layers-2)) + \
-      #               [nn.Linear(hidden_size, vocab_size)]
       self.hiddens = clones(nn.Linear(hidden_size, hidden_size), num_layers)
       self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers)
 
@@ -104,21 +89,6 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.hiddens = hiddens2
     rnns2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns])
     self.rnns = rnns2
-
-    # TODO ========================
-    # Initialization of the parameters of the recurrent and fc layers. 
-    # Your implementation should support any number of stacked hidden layers 
-    # (specified by num_layers), use an input embedding layer, and include fully
-    # connected layers with dropout after each recurrent layer.
-    # Note: you may use pytorch's nn.Linear, nn.Dropout, and nn.Embedding 
-    # modules, but not recurrent modules.
-    #
-    # To create a variable number of parameter tensors and/or nn.Modules 
-    # (for the stacked hidden layer), you may need to use nn.ModuleList or the 
-    # provided clones function (as opposed to a regular python list), in order 
-    # for Pytorch to recognize these parameters as belonging to this nn.Module 
-    # and compute their gradients automatically. You're not obligated to use the
-    # provided clones function.
 
   def init_weights(self):
     # TODO ========================
@@ -129,10 +99,10 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
     # Initialize the embedding and output weights uniformly
     nn.init.uniform_(self.em.weight, -0.1, 0.1)
-    nn.init.uniform_(self.hiddens[-1].weight, -0.1, 0.1)
+    nn.init.uniform_(self.out.weight, -0.1, 0.1)
 
     # Initialize output biases to 0
-    nn.init.zeros_(self.hiddens[-1].bias)
+    nn.init.zeros_(self.out.bias)
 
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
     for i, hid in self.hiddens:
@@ -188,71 +158,41 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     """
 
     for t in range(inputs.size()[0]):  # For each timestep
-      print('TIMESTEP', t)
-      print('inputs size:', inputs.size())
       one_input = inputs[t]
-      print('one input', one_input)
       x = self.em(one_input)
       x = self.drop(x)
-      print('embeddings size:', x.size())
       x = self.inp(x)
       
       if t != 0:
-        print('In next timestep.')
-        # dropped version from current stack + non-dropped version from previous stack
         new_prevs = []
         final_hidden_states = []
         for i, hid in enumerate(self.hiddens):
-          print('Layer {}: {}'.format(i, hid))
-          print('size of x:', x.size())
           x = hid(x)
-          print('size of x hid:', x.size())
-          print('size of prev:', prevs[i].size())
-          print('size of prev rnn:', self.rnns[i](prevs[i]).size())
-          x_act = torch.tanh(x + self.rnns[i](prevs[i]))
-          print('size of x_act:', x_act.size())
+          x_act = torch.tanh(x + self.rnns[i](prevs[i]))  # Recurrent
           new_prevs.append(x_act)
           x_drop = self.drop(x_act)
           x_out = self.out(x_drop)
           final_hidden_states.append(x_drop)
-          print('final hidden states after append:', len(final_hidden_states), x_drop.size())
 
         prevs = new_prevs
-        #x_act = torch.unsqueeze(x_act, dim=0)
-        #logits = torch.cat([logits, x_act], dim=0)
         logits.append(x_out)
-        print('logits after append:', len(logits), x_out.size())
 
       else: # If in first timestep
-        print('In first timestep.')
         prevs = []
         logits = []
         for i, hid in enumerate(self.hiddens):
-          print('Layer', i)
           x = hid(x)
           x_act = torch.tanh(x)
-          print('x_act size:', x_act.size())
           prevs.append(x_act)
           x_drop = self.drop(x_act)
           x_out = self.out(x_drop)
-        #logits = torch.unsqueeze(x_act, dim=0)
-        #logits = x_act
         logits.append(x_out)
 
-      if t == inputs.size()[0]-1:
-        print('Final timestep.')
+      if t == inputs.size()[0]-1:   # If in last timestep
         hidden = torch.cat(final_hidden_states)
         logits = torch.cat(logits)
 
-    print('---')
-    print('seq len:', self.seq_len)
-    print('batch_size:', self.batch_size)
-    print('vocab_size:', self.vocab_size)
-    print('logits size:', logits.size())
-    print('hidden size:', hidden.size())
-    #print('logits view size:', logits.view(self.seq_len, self.batch_size, self.vocab_size))
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
-    #return logits, hidden
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
