@@ -106,7 +106,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
     for i, hid in self.hiddens:
-      nn.init.uniform_(hid.weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(hid.weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       nn.init.uniform(self.rnns[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       nn.init.uniform(hid.bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       nn.init.uniform(self.rnns[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
@@ -232,18 +232,158 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
     super(GRU, self).__init__()
 
-    # TODO ========================
+    # given params, save them
+    self.emb_size = emb_size
+    self.hidden_size = hidden_size
+    self.seq_len = seq_len
+    self.batch_size = batch_size
+    self.vocab_size = vocab_size
+    self.num_layers = num_layers
+    self.dp_keep_prob = dp_keep_prob
+
+    # different actication functions for differernt gates
+    # sigmoid r
+    self.act_reset = nn.Sigmoid()
+    # sigmoid Z
+    self.act_forget = nn.Sigmoid()
+    # hidden tanh
+    self.act_hidden = nn.Tanh()
+
+    # Use the GPU if you have one
+    if torch.cuda.is_available():
+        self.device = torch.device("cuda")
+    else:
+        self.device = torch.device("cpu")
+
+    # Embedding layer, input to hidden, output, and dropout (same everywhere)
+    self.em = nn.Embedding(vocab_size, emb_size)
+    self.drop = nn.Dropout(p=(1-dp_keep_prob))
+    # transform the input
+    self.inp = nn.Linear(emb_size, hidden_size)
+    self.out = nn.Linear(hidden_size, vocab_size)
+
+    # Account for arbitrary number of hidden layers/rnn connections
+    # W_h . h_t
+    if num_layers == 1:
+      self.hiddens_u_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.hiddens_u_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.hiddens_u = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+
+    else:
+      self.hiddens_u_reset = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.rnns_w_reset = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.hiddens_u_forget = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.rnns_w_forget = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.hiddens_u = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.rnns_w = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+    # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
+    hiddens_u_reset2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u_reset])
+    self.hiddens_u_reset = hiddens_u_reset2
+
+    rnns_w_reset2 = nn.ModuleList([hid.to(self.device) for hid in self.rnns_w_reset])
+    self.rnns_w_reset = rnns_w_reset2
+
+    hiddens_u_forget2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u_forget])
+    self.hiddens_u_forget = hiddens_u_forget2
+
+    hiddens_u2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u])
+    self.hiddens_u = hiddens_u2
+
+    rnns_w2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns_w])
+    self.rnns_w = rnns_w2
 
   def init_weights_uniform(self):
     # TODO ========================
-    pass
+    # Initialize the embedding and output weights uniformly
+    nn.init.uniform_(self.em.weight, -0.1, 0.1)
+    nn.init.uniform_(self.out.weight, -0.1, 0.1)
+
+    # Initialize output biases to 0
+    nn.init.zeros_(self.out.bias)
+
+    # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
+    for i in range(self.num_layers):
+      # reset gates weights and bias
+      nn.init.uniform(self.hiddens_u_reset[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.hiddens_u_reset[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+
+      # forget gate weights and bias
+      nn.init.uniform(self.hiddens_u_forget[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.hiddens_u_forget[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+
+      # hiddens_u, U_h
+      nn.init.uniform(self.hiddens_u[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.hiddens_u[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+
+      # rnn_u, W_h
+      nn.init.uniform(self.rnns_w[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.rnns_w[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+
+
 
   def init_hidden(self):
     # TODO ========================
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    states = Variable(torch.zeros(self.num_layers, self.batch_size, self.hidden_size))
+
+    return states # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
   def forward(self, inputs, hidden):
-    # TODO ========================
+
+    for t in range(inputs.size()[0]):  # For each timestep
+      one_input = inputs[t]
+      x = self.em(one_input)
+      x = self.drop(x)
+      x = self.inp(x)
+
+      if t != 0:
+        new_prevs = []
+        final_hidden_states = []
+        for i in range(self.num_layers):
+          reset = self.rnns_w_reset[i](x) + self.hiddens_u_reset[i](prevs[i])
+          reset_act = self.act_reset(reset)
+
+          forget = self.rnns_w_forget[i](x) + self.hiddens_u_forget[i](prevs[i])
+          forget_act = self.act_forget(forget)
+
+          h_tilde_t = self.rnns_w[i](x) + self.hiddens_u[i](torch.mul(reset_act, prevs[i]))
+          h_tilde_t_act = self.act_hidden(h_tilde_t)
+
+          h_t = torch.mul((torch.ones(self.hidden_size, self.hidden_size) - forget_act), prevs[i]) \
+                + torch.mul(forget_act, h_tilde_t_act)
+          new_prevs.append(x)
+          final_hidden_states.append(h_t)
+          x_out = self.out(h_t)
+
+        prevs = new_prevs
+        logits.append(x_out)
+
+      else:  # If in first timestep
+        prevs = []
+        logits = []
+        for i in range(self.num_layers):
+          reset = self.rnns_w_reset[i](x)
+          reset_act = self.act_reset(reset)
+          forget = self.rnns_w_forget[i](x)
+          forget_act = self.act_forget(forget)
+          h_tilde_t = self.rnns_w[i](x) + self.hiddens_u[i](torch.mul(reset_act,
+                                  torch.zeros(self.hidden_size, self.hidden_size)))
+          h_tilde_t_act = self.act_hidden(h_tilde_t)
+
+          h_t = torch.mul((torch.ones(self.hidden_size, self.hidden_size) - forget_act), prevs[i]) \
+                + torch.mul(forget_act, h_tilde_t_act)
+
+          x_out = self.out(h_t)
+
+          prevs.append(h_t)
+          logits.append(x_out)
+
+        if t == inputs.size()[0] - 1:  # If in last timestep
+          hidden = torch.cat(final_hidden_states)
+          logits = torch.cat(logits)
+
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
