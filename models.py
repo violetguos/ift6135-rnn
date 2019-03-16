@@ -372,17 +372,16 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
                                   torch.zeros(self.hidden_size, self.hidden_size)))
           h_tilde_t_act = self.act_hidden(h_tilde_t)
 
-          h_t = torch.mul((torch.ones(self.hidden_size, self.hidden_size) - forget_act), prevs[i]) \
-                + torch.mul(forget_act, h_tilde_t_act)
+          h_t = torch.mul(forget_act, h_tilde_t_act)
 
           x_out = self.out(h_t)
 
           prevs.append(h_t)
-          logits.append(x_out)
+        logits.append(x_out)
 
-        if t == inputs.size()[0] - 1:  # If in last timestep
-          hidden = torch.cat(final_hidden_states)
-          logits = torch.cat(logits)
+      if t == inputs.size()[0] - 1:  # If in last timestep
+        hidden = torch.cat(final_hidden_states)
+        logits = torch.cat(logits)
 
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
