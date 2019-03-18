@@ -82,7 +82,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
       self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
     else:
       self.hiddens = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns = clones(nn.Linear(hidden_size, hidden_size), num_layers, bias=False)
+      self.rnns = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
 
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
     hiddens2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens])
