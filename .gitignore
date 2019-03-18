@@ -1,5 +1,7 @@
 .idea
 .idea/
+*.out
+*.err
 
 #########Latex############
 ## Core latex/pdflatex auxiliary files:
