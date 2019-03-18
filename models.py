@@ -266,24 +266,25 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     # W_h . h_t
     if num_layers == 1:
       self.hiddens_u_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      self.rnns_w_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
       self.hiddens_u_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      self.rnns_w_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
       self.hiddens_u = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      self.rnns_w = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
 
     else:
       self.hiddens_u_reset = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns_w_reset = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.rnns_w_reset = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
       self.hiddens_u_forget = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns_w_forget = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.rnns_w_forget = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
       self.hiddens_u = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns_w = clones(nn.Linear(hidden_size, hidden_size), num_layers)
+      self.rnns_w = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
+
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
     hiddens_u_reset2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u_reset])
     self.hiddens_u_reset = hiddens_u_reset2
 
-    rnns_w_reset2 = nn.ModuleList([hid.to(self.device) for hid in self.rnns_w_reset])
+    rnns_w_reset2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns_w_reset])
     self.rnns_w_reset = rnns_w_reset2
 
     hiddens_u_forget2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u_forget])
@@ -291,6 +292,9 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
     hiddens_u2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u])
     self.hiddens_u = hiddens_u2
+
+    rnns_w_forget2 = nn.Module([rnn.to(seld.device) for rnn in self.rnns_w_forget])
+    self.rnns_w_forget = rnns_w_forget2
 
     rnns_w2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns_w])
     self.rnns_w = rnns_w2
@@ -306,13 +310,23 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
     for i in range(self.num_layers):
-      # reset gates weights and bias
+      # reset gates weights and bias, U_r
       nn.init.uniform(self.hiddens_u_reset[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       nn.init.uniform(self.hiddens_u_reset[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
 
-      # forget gate weights and bias
+      # reset gates W_r
+      nn.init.uniform(self.rnns_w_reset[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      # nn.init.uniform(self.rnns_w_reset[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      # nn.init.zeros_(self.rnns_w_reset[i].bias)
+
+      # forget gate weights and bias, U_z
       nn.init.uniform(self.hiddens_u_forget[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       nn.init.uniform(self.hiddens_u_forget[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+
+      # forget gate, W_z
+      nn.init.uniform(self.rnns_w_forget[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      # nn.init.uniform(self.rnns_w_forget[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      # nn.init.zeros_(self.rnns_w_forget[i].bias)
 
       # hiddens_u, U_h
       nn.init.uniform(self.hiddens_u[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
@@ -320,8 +334,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
       # rnn_u, W_h
       nn.init.uniform(self.rnns_w[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-      nn.init.uniform(self.rnns_w[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-
+      # nn.init.uniform(self.rnns_w[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      # self.rnns_w[i].bias
 
 
   def init_hidden(self):
@@ -353,9 +367,12 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
           h_t = torch.mul((torch.ones(self.hidden_size, self.hidden_size) - forget_act), prevs[i]) \
                 + torch.mul(forget_act, h_tilde_t_act)
-          new_prevs.append(x)
-          final_hidden_states.append(h_t)
-          x_out = self.out(h_t)
+          new_prevs.append(h_t)
+
+          h_t_drop = self.drop(h_t)
+          final_hidden_states.append(h_t_drop)
+
+          x_out = self.out(h_t_drop)
 
         prevs = new_prevs
         logits.append(x_out)
@@ -368,15 +385,15 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
           reset_act = self.act_reset(reset)
           forget = self.rnns_w_forget[i](x)
           forget_act = self.act_forget(forget)
-          h_tilde_t = self.rnns_w[i](x) + self.hiddens_u[i](torch.mul(reset_act,
-                                  torch.zeros(self.hidden_size, self.hidden_size)))
+          h_tilde_t = self.rnns_w[i](x) # + self.hiddens_u[i](torch.mul(reset_act,
+                                  #torch.zeros(self.hidden_size, self.hidden_size)))
           h_tilde_t_act = self.act_hidden(h_tilde_t)
 
           h_t = torch.mul(forget_act, h_tilde_t_act)
-
-          x_out = self.out(h_t)
-
           prevs.append(h_t)
+          h_t_drop = self.drop(h_t)
+          x_out = self.out(h_t_drop)
+
         logits.append(x_out)
 
       if t == inputs.size()[0] - 1:  # If in last timestep
@@ -387,6 +404,13 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
+    """
+
+    :param input: token -> seq?? -> hid ??
+    :param hidden:
+    :param generated_seq_len:
+    :return:
+    """
     return samples
 
 
