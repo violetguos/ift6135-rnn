@@ -90,6 +90,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     rnns2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns])
     self.rnns = rnns2
 
+    # Initialize the weights
+    self.init_weights()
+
   def init_weights(self):
     # TODO ========================
     # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
@@ -105,11 +108,10 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     nn.init.zeros_(self.out.bias)
 
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
-    for i, hid in self.hiddens:
-      nn.init.uniform_(hid.weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-      nn.init.uniform_(self.rnns[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-      nn.init.uniform_(hid.bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-      #nn.init.uniform_(self.rnns[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+    for i, hid in enumerate(self.hiddens):
+      nn.init.uniform_(hid.weight, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.rnns[i].weight, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(hid.bias, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
 
   def init_hidden(self):
     # TODO ========================
