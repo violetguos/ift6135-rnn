@@ -159,36 +159,47 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
     for t in range(inputs.size()[0]):  # For each timestep
       one_input = inputs[t]
-      x = self.em(one_input)
-      x = self.drop(x)
-      x = self.inp(x)
+      x = self.em(one_input)  # Through embedding
+      x = self.drop(x)        # Initial dropout on input
+      x = self.inp(x)         # Transform to hidden_size
       
+      # If not in first timestep
       if t != 0:
         new_prevs = []
         final_hidden_states = []
+        # Pass through stack
         for i, hid in enumerate(self.hiddens):
           x = hid(x)
           x_act = torch.tanh(x + self.rnns[i](prevs[i]))  # Recurrent
-          new_prevs.append(x_act)
+          new_prevs.append(x_act)   # No dropout on recurrent connections
           x_drop = self.drop(x_act)
-          x_out = self.out(x_drop)
+          x = x_drop                # Pass along the dropped version up the stack
           final_hidden_states.append(x_drop)
-
+          # At last step, get the output logit
+          if i == len(self.hiddens)-1:
+            x_out = self.out(x_drop)
+            logits.append(x_out)
+        # Set current step to previous step for next loop
         prevs = new_prevs
-        logits.append(x_out)
 
-      else: # If in first timestep
+      # If in first timestep
+      else:
         prevs = []
         logits = []
+        # Pass through stack
         for i, hid in enumerate(self.hiddens):
           x = hid(x)
           x_act = torch.tanh(x)
-          prevs.append(x_act)
+          prevs.append(x_act)   # No dropout on recurrent connections
           x_drop = self.drop(x_act)
-          x_out = self.out(x_drop)
-        logits.append(x_out)
+          x = x_drop            # Pass along the dropped version up the stack
+          # At last step, get the output logit
+          if i == len(self.hiddens)-1:
+            x_out = self.out(x_drop)
+            logits.append(x_out)
 
-      if t == inputs.size()[0]-1:   # If in last timestep
+      # If in last timestep
+      if t == inputs.size()[0]-1:
         hidden = torch.cat(final_hidden_states)
         logits = torch.cat(logits)
 
