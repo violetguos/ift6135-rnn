@@ -293,7 +293,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     hiddens_u2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u])
     self.hiddens_u = hiddens_u2
 
-    rnns_w_forget2 = nn.Module([rnn.to(self.device) for rnn in self.rnns_w_forget])
+    rnns_w_forget2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns_w_forget])
     self.rnns_w_forget = rnns_w_forget2
 
     rnns_w2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns_w])
@@ -351,7 +351,6 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       x = self.em(one_input)
       x = self.drop(x)
       x = self.inp(x)
-
       if t != 0:
         new_prevs = []
         final_hidden_states = []
@@ -364,8 +363,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
           h_tilde_t = self.rnns_w[i](x) + self.hiddens_u[i](torch.mul(reset_act, prevs[i]))
           h_tilde_t_act = self.act_hidden(h_tilde_t)
-
-          h_t = torch.mul((torch.ones(self.hidden_size, self.hidden_size) - forget_act), prevs[i]) \
+          # print("forget_act", forget_act.size())
+          h_t = torch.mul((torch.ones(self.batch_size, self.hidden_size) - forget_act), prevs[i]) \
                 + torch.mul(forget_act, h_tilde_t_act)
           new_prevs.append(h_t)
 
