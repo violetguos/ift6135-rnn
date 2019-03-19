@@ -293,7 +293,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     hiddens_u2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u])
     self.hiddens_u = hiddens_u2
 
-    rnns_w_forget2 = nn.Module([rnn.to(seld.device) for rnn in self.rnns_w_forget])
+    rnns_w_forget2 = nn.Module([rnn.to(self.device) for rnn in self.rnns_w_forget])
     self.rnns_w_forget = rnns_w_forget2
 
     rnns_w2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns_w])
