@@ -187,7 +187,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         # Pass through stack
         for i, hid in enumerate(self.hiddens):
           x = hid(x)
-          x_act = torch.tanh(x) # Strictly speaking, we could use the init_hidden tensors in a sum here, but they're zero
+          x_act = torch.tanh(x + self.rnns[i](hidden[i]))  # Where hidden is from input 
           prevs.append(x_act)   # No dropout on recurrent connections
           x_drop = self.drop(x_act)
           x = x_drop            # Pass along the dropped version up the stack
