@@ -73,16 +73,13 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # Embedding layer, input to hidden, output, and dropout (same everywhere)
     self.em = nn.Embedding(vocab_size, emb_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
-    self.inp = nn.Linear(emb_size, hidden_size, bias=False)
+    self.inp_hid = nn.Linear(emb_size, hidden_size)
+    self.inp_rnn = nn.Linear(emb_size, hidden_size, bias=False)
     self.out = nn.Linear(hidden_size, vocab_size)
 
     # Account for arbitrary number of hidden layers/rnn connections
-    if num_layers == 1:
-      self.hiddens = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
-    else:
-      self.hiddens = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
+    self.hiddens = nn.ModuleList([self.inp_hid]+list(clones(nn.Linear(hidden_size, hidden_size), num_layers-1)))
+    self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False) for i in range(num_layers)])
 
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
     hiddens2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens])
@@ -163,7 +160,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
       one_input = inputs[t]
       x = self.em(one_input)  # Through embedding
       x = self.drop(x)        # Initial dropout on input
-      x = self.inp(x)         # Transform to hidden_size
+      #x = self.inp(x)         # Transform to hidden_size
       
       # If not in first timestep
       if t != 0:
