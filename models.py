@@ -160,7 +160,6 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
       one_input = inputs[t]
       x = self.em(one_input)  # Through embedding
       x = self.drop(x)        # Initial dropout on input
-      #x = self.inp(x)         # Transform to hidden_size
       
       # If not in first timestep
       if t != 0:
@@ -188,7 +187,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         # Pass through stack
         for i, hid in enumerate(self.hiddens):
           x = hid(x)
-          x_act = torch.tanh(x)
+          x_act = torch.tanh(x) # Strictly speaking, we could use the init_hidden tensors in a sum here, but they're zero
           prevs.append(x_act)   # No dropout on recurrent connections
           x_drop = self.drop(x_act)
           x = x_drop            # Pass along the dropped version up the stack
