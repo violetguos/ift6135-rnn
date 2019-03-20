@@ -106,7 +106,8 @@ parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Mod
 
 # Arguments you may need to set to run different experiments in 4.1 & 4.2.
 parser.add_argument('--data', type=str, default='data',
-                    help='location of the data corpus')
+                    help='location of the data corpus. We suggest you change the default\
+                    here, rather than passing as an argument, to avoid long file paths.')
 parser.add_argument('--model', type=str, default='GRU',
                     help='type of recurrent net (RNN, GRU, TRANSFORMER)')
 parser.add_argument('--optimizer', type=str, default='SGD_LR_SCHEDULE',
@@ -159,7 +160,7 @@ argsdict['code_file'] = sys.argv[0]
 # Use the model, optimizer, and the flags passed to the script to make the 
 # name for the experimental dir
 print("\n########## Setting Up Experiment ######################")
-flags = [flag.lstrip('--') for flag in sys.argv[1:]]
+flags = [flag.lstrip('--').replace('/', '').replace('\\', '') for flag in sys.argv[1:]]
 experiment_path = os.path.join(args.save_dir+'_'.join([argsdict['model'],
                                                        argsdict['optimizer']]
                                                       + flags))
@@ -195,7 +196,7 @@ else:
 
 ###############################################################################
 #
-# DATA LOADING & PROCESSING
+# LOADING & PROCESSING
 #
 ###############################################################################
 
@@ -419,6 +420,31 @@ def run_epoch(model, data, is_train=False, lr=1.0):
               + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
   return np.exp(costs / iters), losses
 
+        # LOSS COMPUTATION
+        # This line currently averages across all the sequences in a mini-batch 
+        # and all time-steps of the sequences.
+        # For problem 5.3, you will (instead) need to compute the average loss 
+        #at each time-step separately. 
+        loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
+        costs += loss.data.item() * model.seq_len
+        losses.append(costs)
+        iters += model.seq_len
+        if args.debug:
+            print(step, loss)
+        if is_train:  # Only update parameters if training 
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
+            if args.optimizer == 'ADAM':
+                optimizer.step()
+            else: 
+                for p in model.parameters():
+                    if p.grad is not None:
+                        p.data.add_(-lr, p.grad.data)
+            if step % (epoch_size // 10) == 10:
+                print('step: '+ str(step) + '\t' \
+                    + "loss (sum over all examples' seen this epoch):" + str(costs) + '\t' \
+                    + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
+    return np.exp(costs / iters), losses
 
 
 ###############################################################################
