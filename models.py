@@ -259,26 +259,30 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     self.em = nn.Embedding(vocab_size, emb_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
     # transform the input
-    self.inp = nn.Linear(emb_size, hidden_size)
+    # self.inp = nn.Linear(emb_size, hidden_size)
     self.out = nn.Linear(hidden_size, vocab_size)
+
+    # TAs changed stuff LOL
+    self.inp_hid = nn.Linear(emb_size, hidden_size)
+    self.inp_rnn = nn.Linear(emb_size, hidden_size, bias=False)
 
     # Account for arbitrary number of hidden layers/rnn connections
     # W_h . h_t
     if num_layers == 1:
-      self.hiddens_u_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      self.rnns_w_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
-      self.hiddens_u_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      self.rnns_w_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
-      self.hiddens_u = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
-      self.rnns_w = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False)])
+      self.hiddens_u_reset = nn.ModuleList([self.inp_hid] + [nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w_reset = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
+      self.hiddens_u_forget = nn.ModuleList([self.inp_hid]+[nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w_forget = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
+      self.hiddens_u = nn.ModuleList([self.inp_hid]+[nn.Linear(hidden_size, hidden_size)])
+      self.rnns_w = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
 
     else:
-      self.hiddens_u_reset = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns_w_reset = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
-      self.hiddens_u_forget = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns_w_forget = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
-      self.hiddens_u = clones(nn.Linear(hidden_size, hidden_size), num_layers)
-      self.rnns_w = clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers)
+      self.hiddens_u_reset = nn.ModuleList(list(clones(nn.Linear(hidden_size, hidden_size), num_layers)))
+      self.rnns_w_reset =  nn.ModuleList([self.inp_rnn] + list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
+      self.hiddens_u_forget = nn.ModuleList( list(clones(nn.Linear(hidden_size, hidden_size), num_layers)))
+      self.rnns_w_forget = nn.ModuleList([self.inp_rnn] + list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
+      self.hiddens_u = nn.ModuleList(list(clones(nn.Linear(hidden_size, hidden_size), num_layers)))
+      self.rnns_w = nn.ModuleList([self.inp_rnn] + list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
 
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
     hiddens_u_reset2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens_u_reset])
@@ -351,20 +355,26 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
     for t in range(inputs.size()[0]):  # For each timestep
       one_input = inputs[t]
+      # print("one_input original", one_input.size())
       x = self.em(one_input)
+      # print("x sohuld be emb", x.size())
       x = self.drop(x)
-      x = self.inp(x)
+      # x = self.inp(x)
       if t != 0:
         new_prevs = []
         final_hidden_states = []
+        reset = x
+        forget = x
+        h_tilde_t = x
         for i in range(self.num_layers):
-          reset = self.rnns_w_reset[i](x) + self.hiddens_u_reset[i](prevs[i])
+          # print("prevs[i]", prevs[i].size()) # no need to transform input in hiddens????
+          reset = self.rnns_w_reset[i](reset) + self.hiddens_u_reset[i](prevs[i])
           reset_act = self.act_reset(reset)
 
-          forget = self.rnns_w_forget[i](x) + self.hiddens_u_forget[i](prevs[i])
+          forget = self.rnns_w_forget[i](forget) + self.hiddens_u_forget[i](prevs[i])
           forget_act = self.act_forget(forget)
 
-          h_tilde_t = self.rnns_w[i](x) + self.hiddens_u[i](torch.mul(reset_act, prevs[i]))
+          h_tilde_t = self.rnns_w[i](h_tilde_t) + self.hiddens_u[i](torch.mul(reset_act, prevs[i]))
           h_tilde_t_act = self.act_hidden(h_tilde_t)
           # print("forget_act", forget_act.size())
           h_t = torch.mul((torch.ones(self.batch_size, self.hidden_size, device=self.device) - forget_act), prevs[i]) \
@@ -382,13 +392,20 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       else:  # If in first timestep
         prevs = []
         logits = []
+        reset = x
+        forget = x
+        h_tilde_t = x
         for i in range(self.num_layers):
-          reset = self.rnns_w_reset[i](x)
+          reset = self.rnns_w_reset[i](reset)
+          # the output of this layer
+          # set the input to be the output of this layer
+
           reset_act = self.act_reset(reset)
-          forget = self.rnns_w_forget[i](x)
+          forget = self.rnns_w_forget[i](forget)
+
           forget_act = self.act_forget(forget)
-          h_tilde_t = self.rnns_w[i](x) # + self.hiddens_u[i](torch.mul(reset_act,
-                                  #torch.zeros(self.hidden_size, self.hidden_size)))
+
+          h_tilde_t = self.rnns_w[i](h_tilde_t)
           h_tilde_t_act = self.act_hidden(h_tilde_t)
 
           h_t = torch.mul(forget_act, h_tilde_t_act)
@@ -407,12 +424,17 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
   def generate(self, input, hidden, generated_seq_len):
     # TODO ========================
     """
-
     :param input: token -> seq?? -> hid ??
     :param hidden:
     :param generated_seq_len:
     :return:
     """
+
+    # copy code from forward
+    # logits = logits.view(self.seq_len, self.batch_size, self.vocab_size)
+    # sample_softmax = torch.nn.Softmax(dim=2)
+    # samples = sample_softmax(logits)
+
     return samples
 
 
