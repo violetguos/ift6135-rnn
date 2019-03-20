@@ -56,7 +56,21 @@ and a linear layer followed by a softmax.
 
 # ----------------------------------------------------------------------------------
 
+
+import torch
+import torch.nn
+from torch.autograd import Variable
+import torch.nn as nn
+import numpy
+import copy
+import math
+np = numpy
+import torch.nn.functional as F
+
 # TODO: implement this class
+
+
+
 
 class MultiHeadedAttention(nn.Module):
     def __init__(self, n_heads, n_units, dropout=0.35):
@@ -68,28 +82,14 @@ class MultiHeadedAttention(nn.Module):
         super(MultiHeadedAttention, self).__init__()
         # This sets the size of the keys, values, and queries (self.d_k) to all
         # be equal to the number of output units divided by the number of heads.
-        self.d_k = n_units // n_heads
+        self.n_units = n_units
+        self.n_heads = n_heads
+        self.d_k = self.n_units // self.n_heads
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
-        k = sqrt(1/self.n_units)
-        # self.lin = nn.linear(self.n_units)
-        self.drop = nn.Dropout(dropout)
+        k = np.sqrt(1/self.n_units)
 
-        self.W_Q = nn.Linear(seq_len, self.n_units)
-        self.W_K = nn.Linear(seq_len, self.n_units)
-        self.W_V = nn.Linear(seq_len, self.n_units)
-        self.W_0 = nn.Linear(y, z)
-
-        # initialize to [-k,k]
-        torch.nn.init.uniform_(self.W_Q.weight, -k, k)
-        torch.nn.init.uniform_(self.W_K.weight, -k, k)
-        torch.nn.init.uniform_(self.W_V.weight, -k, k)
-        torch.nn.init.uniform_(self.W_0.weight, -k, k)
-        torch.nn.init.uniform_(self.W_Q.bias, -k, k)
-        torch.nn.init.uniform_(self.W_K.bias, -k, k)
-        torch.nn.init.uniform_(self.W_V.bias, -k, k)
-        torch.nn.init.uniform_(self.W_0.bias, -k, k)
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
@@ -97,6 +97,25 @@ class MultiHeadedAttention(nn.Module):
         # Note: the only Pytorch modules you are allowed to use are nn.Linear
         # and nn.Dropout
         # ETA: you can also use softmax
+
+        self.W_Q = nn.Linear(self.n_units, self.d_k)
+        self.W_K = nn.Linear(self.n_units, self.d_k)
+        self.W_V = nn.Linear(self.n_units, self.d_k)
+        self.W_0 = nn.Linear(self.n_units * self.n_heads, self.n_units)
+        self.lin = nn.Linear(self.n_units, self.n_units)
+        self.drop = nn.Dropout(dropout)
+        # initialize to [-k,k]
+        torch.nn.init.uniform_(self.W_Q.weight, -k, k)
+        torch.nn.init.uniform_(self.W_K.weight, -k, k)
+        torch.nn.init.uniform_(self.W_V.weight, -k, k)
+        torch.nn.init.uniform_(self.W_0.weight, -k, k)
+        torch.nn.init.uniform_(self.lin.weight, -k, k)
+        torch.nn.init.uniform_(self.W_Q.bias, -k, k)
+        torch.nn.init.uniform_(self.W_K.bias, -k, k)
+        torch.nn.init.uniform_(self.W_V.bias, -k, k)
+        torch.nn.init.uniform_(self.W_0.bias, -k, k)
+        torch.nn.init.uniform_(self.lin.bias, -k, k)
+
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -110,27 +129,30 @@ class MultiHeadedAttention(nn.Module):
                 for i in range(self.n_heads)]
 
         # concat tensors
-        x = torch.cat(att)
+        # x1 = torch.cat(att, dim=1)
+        x2 = torch.cat(att, dim=2)
+        # print('x1 shape after cat is ', x1.size())
+        # print('x2 shape after cat is', x2.size())
         # might have a dimension issue
-        print('the shape of x is', x.size())
         # multiply by W_0
-        x = self.W_0(x)
-
+        x = self.W_0(x2)
         # linear layer
-        # x = self.lin(x)
-        return # size: (batch_size, seq_len, self.n_units)
+        x = self.lin(x)
+        print('output is ', x.size())
+        return x # size: (batch_size, seq_len, self.n_units)
 
-    def attention(self, query, key, value, mask=None):
-        K = self.W_K(key)
-        Q = self.W_Q(query)
-        V = self.Q_V(value)
-        # check the brackets for dimseq and dim features
-        arg = torch.bmm(Q, K.transpose(Dim.seq, Dim.feature))
-        arg = arg / math.sqrt(self.d_k)
-        arg = arg * mask - 10e-9*(1 - mask)
-        H = torch.bmm(arg, V)
-        H = self.dropout(H)
-        return H
+def attention(self, query, key, value, mask=None):
+    K = self.W_K(key)
+    Q = self.W_Q(query)
+    V = self.W_V(value)
+    # check the brackets for dimseq and dim features
+    arg = torch.bmm(Q, K.transpose(1, 2))
+    arg = arg / math.sqrt(self.d_k)
+    arg = arg * mask.float() - float(10e-9) * (1 - mask.float())
+    H = torch.bmm(arg, V)
+    H = self.drop(H)
+    print('H is ', H.size())
+    return H
 
 
 # ----------------------------------------------------------------------------------
@@ -279,6 +301,9 @@ class ResidualSkipConnectionWithLayerNorm(nn.Module):
         return x + self.dropout(sublayer(self.norm(x)))
 
 
+
+
+
 class MLP(nn.Module):
     """
     This is just an MLP with 1 hidden layer
@@ -293,3 +318,18 @@ class MLP(nn.Module):
     def forward(self, x):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
 
+
+
+# clones
+
+
+def clones(module, N):
+    """
+    A helper function for producing N identical layers (each with their own parameters).
+    inputs:
+        module: a pytorch nn.module
+        N (int): the number of copies of that module to return
+    returns:
+        a ModuleList with the copies of the module (the ModuleList is itself also a module)
+    """
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
