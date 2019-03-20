@@ -314,29 +314,29 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
     for i in range(self.num_layers):
       # reset gates weights and bias, U_r
-      nn.init.uniform(self.hiddens_u_reset[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-      nn.init.uniform(self.hiddens_u_reset[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.hiddens_u_reset[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+      nn.init.uniform(self.hiddens_u_reset[i].bias, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
 
       # reset gates W_r
-      nn.init.uniform(self.rnns_w_reset[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.rnns_w_reset[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
       # nn.init.uniform(self.rnns_w_reset[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       # nn.init.zeros_(self.rnns_w_reset[i].bias)
 
       # forget gate weights and bias, U_z
-      nn.init.uniform(self.hiddens_u_forget[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-      nn.init.uniform(self.hiddens_u_forget[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.hiddens_u_forget[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+      nn.init.uniform(self.hiddens_u_forget[i].bias, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
 
       # forget gate, W_z
-      nn.init.uniform(self.rnns_w_forget[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.rnns_w_forget[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
       # nn.init.uniform(self.rnns_w_forget[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       # nn.init.zeros_(self.rnns_w_forget[i].bias)
 
       # hiddens_u, U_h
-      nn.init.uniform(self.hiddens_u[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
-      nn.init.uniform(self.hiddens_u[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.hiddens_u[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+      nn.init.uniform(self.hiddens_u[i].bias, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
 
       # rnn_u, W_h
-      nn.init.uniform(self.rnns_w[i].weight, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      nn.init.uniform(self.rnns_w[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
       # nn.init.uniform(self.rnns_w[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
       # self.rnns_w[i].bias
 
