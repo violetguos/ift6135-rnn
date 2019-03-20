@@ -2,8 +2,6 @@
 #PBS -A colosse-users
 #PBS -l nodes=1:gpus=1
 #PBS -l walltime=10:00:00
-#PBS -l advres=MILA2019
-#PBS -l feature=k80
 
 cd /home/$USER/hw2/ift6135-rnn
 
