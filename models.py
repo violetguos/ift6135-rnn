@@ -299,6 +299,9 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     rnns_w2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns_w])
     self.rnns_w = rnns_w2
 
+    # Initialize the weights
+    self.init_weights_uniform()
+
   def init_weights_uniform(self):
     # TODO ========================
     # Initialize the embedding and output weights uniformly
