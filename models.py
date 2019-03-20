@@ -190,7 +190,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
             for i, hid in enumerate(self.hiddens):
                 x = hid(x)
                 x_act = torch.tanh(x)
-                prevs.append(x_act)  # No dropout on recurrent connections
+                prevs.append(x_act + self.rnns[i](hidden[i]))  # No dropout on recurrent connections
                 x_drop = self.drop(x_act)
                 x = x_drop  # Pass along the dropped version up the stack
                 # At last step, get the output logit
@@ -459,18 +459,27 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         - Sampled sequences of tokens
                     shape: (generated_seq_len, batch_size)
     """
-    one_input = input
-    # print("one_input original", one_input.size())
-    x = self.em(one_input)
-    # print("x sohuld be emb", x.size())
-    x = self.drop(x)
-    # x = self.inp(x)
-    if t != 0:
-      new_prevs = []
-      final_hidden_states = []
-      reset = x
-      forget = x
-      h_tilde_t = x
+    for t in range(generated_seq_len):  # For each timestep
+      one_input = inputs
+      # print("one_input original", one_input.size())
+      x = self.em(one_input)
+      # print("x sohuld be emb", x.size())
+      x = self.drop(x)
+      # x = self.inp(x)
+      if t != 0:
+        new_prevs = []
+        final_hidden_states = []
+        reset = x
+        forget = x
+        h_tilde_t = x
+      else:  # If in first timestep
+        prevs = hidden
+        prevs_next = []
+        logits = []
+        reset = x
+        forget = x
+        h_tilde_t = x
+
       for i in range(self.num_layers):
         # print("prevs[i]", prevs[i].size()) # no need to transform input in hiddens????
         reset = self.rnns_w_reset[i](reset) + self.hiddens_u_reset[i](prevs[i])
@@ -483,7 +492,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         h_tilde_t_act = self.act_hidden(h_tilde_t)
         # print("forget_act", forget_act.size())
         h_t = torch.mul((torch.ones(self.batch_size, self.hidden_size, device=self.device) - forget_act), prevs[i]) \
-                  + torch.mul(forget_act, h_tilde_t_act)
+                + torch.mul(forget_act, h_tilde_t_act)
         new_prevs.append(h_t)
 
         h_t_drop = self.drop(h_t)
@@ -494,40 +503,16 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       prevs = new_prevs
       logits.append(x_out)
 
-    else:  # If in first timestep
-      prevs = []
-      logits = []
-      reset = x
-      forget = x
-      h_tilde_t = x
-      for i in range(self.num_layers):
-        reset = self.rnns_w_reset[i](reset)
-        # the output of this layer
-        # set the input to be the output of this layer
 
-        reset_act = self.act_reset(reset)
-        forget = self.rnns_w_forget[i](forget)
 
-        forget_act = self.act_forget(forget)
+      if t == inputs.size()[0] - 1:  # If in last timestep
+        hidden = torch.cat(final_hidden_states)
+        logits = torch.cat(logits)
 
-        h_tilde_t = self.rnns_w[i](h_tilde_t)
-        h_tilde_t_act = self.act_hidden(h_tilde_t)
-
-        h_t = torch.mul(forget_act, h_tilde_t_act)
-        prevs.append(h_t)
-        h_t_drop = self.drop(h_t)
-        x_out = self.out(h_t_drop)
-
-      logits.append(x_out)
-
-    if t == inputs.size()[0] - 1:  # If in last timestep
-      # hidden = torch.cat(final_hidden_states)
-      logits = torch.cat(logits)
 
     # copy code from forward
     logits = logits.view(generated_seq_len, self.batch_size, self.vocab_size)
-    sample_softmax = torch.nn.Softmax(dim=2)
-    samples = sample_softmax(logits)
+    samples = torch.distributions.Categorical(logits=logits).sample()
 
     return samples
 
