@@ -425,6 +425,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
           prevs_next.append(h_t)
           h_t_drop = self.drop(h_t)
           x_out = self.out(h_t_drop)
+        prevs = prevs_next
 
         logits.append(x_out)
 
