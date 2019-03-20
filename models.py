@@ -263,17 +263,17 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     self.out = nn.Linear(hidden_size, vocab_size)
 
     # TAs changed stuff LOL
-    self.inp_hid = nn.Linear(emb_size, hidden_size)
+    # self.inp_hid = nn.Linear(emb_size, hidden_size)
     self.inp_rnn = nn.Linear(emb_size, hidden_size, bias=False)
 
     # Account for arbitrary number of hidden layers/rnn connections
     # W_h . h_t
     if num_layers == 1:
-      self.hiddens_u_reset = nn.ModuleList([self.inp_hid] + [nn.Linear(hidden_size, hidden_size)])
+      self.hiddens_u_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
       self.rnns_w_reset = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
-      self.hiddens_u_forget = nn.ModuleList([self.inp_hid]+[nn.Linear(hidden_size, hidden_size)])
+      self.hiddens_u_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
       self.rnns_w_forget = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
-      self.hiddens_u = nn.ModuleList([self.inp_hid]+[nn.Linear(hidden_size, hidden_size)])
+      self.hiddens_u = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
       self.rnns_w = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
 
     else:
