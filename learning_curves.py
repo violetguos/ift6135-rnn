@@ -27,8 +27,8 @@ def get_walltimes(log_path):
 
 def gen_train_valid_ppl_epoch(x, save_dir):
     train_ppls = x['train_ppls']
-    valid_ppls = x['valid_ppls']
-    epochs = range(len(train_ppls) - 1)
+    valid_ppls = x['val_ppls']
+    epochs = range(len(train_ppls))
     plt.plot(epochs, train_ppls, color='red', label='Training PPL')
     plt.plot(epochs, valid_ppls, color='blue', label='Validation PPL')
     plt.title('Perplexity over epochs')
@@ -41,7 +41,7 @@ def gen_train_valid_ppl_epoch(x, save_dir):
 
 def gen_train_valid_ppl_walltime(x, walltimes, save_dir):
     train_ppls = x['train_ppls']
-    valid_ppls = x['valid_ppls']
+    valid_ppls = x['val_ppls']
     plt.plot(walltimes, train_ppls, color='red', label='Training PPL')
     plt.plot(walltimes, valid_ppls, color='blue', label='Validation PPL')
     plt.title('Perplexity over wall-clock-time')
@@ -55,8 +55,8 @@ def gen_train_valid_ppl_walltime(x, walltimes, save_dir):
 def gen_valid_arch_ppl_epoch(arch_ppls, save_dir):
     for arch, xs in arch_ppls.items():
         for x in xs:
-            valid_ppls = x['valid_ppls']
-            epochs = range(len(valid_ppls) - 1)
+            valid_ppls = x['val_ppls']
+            epochs = range(len(valid_ppls))
             plt.plot(epochs, valid_ppls, color='blue')
         plt.title('Perplexity over epochs')
         plt.xlabel('Epoch')
@@ -68,7 +68,7 @@ def gen_valid_arch_ppl_epoch(arch_ppls, save_dir):
 def gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, save_dir):
     for arch, xs in arch_ppls.items():
         for i, x in enumerate(xs):
-            valid_ppls = x['valid_ppls']
+            valid_ppls = x['val_ppls']
             walltimes = arch_walltimes[arch][i]
             plt.plot(walltimes, valid_ppls, color='blue')
         plt.title('Perplexity over wall-clock-time')
@@ -81,8 +81,8 @@ def gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, save_dir):
 def gen_valid_opt_ppl_epoch(opt_ppls, save_dir):
     for opt, xs in opt_ppls.items():
         for x in xs:
-            valid_ppls = x['valid_ppls']
-            epochs = range(len(valid_ppls) - 1)
+            valid_ppls = x['val_ppls']
+            epochs = range(len(valid_ppls))
             plt.plot(epochs, valid_ppls, color='blue')
         plt.title('Perplexity over epochs')
         plt.xlabel('Epoch')
@@ -94,7 +94,7 @@ def gen_valid_opt_ppl_epoch(opt_ppls, save_dir):
 def gen_valid_opt_ppl_walltime(opt_ppls, opt_walltimes, save_dir):
     for opt, xs in opt_ppls.items():
         for i, x in enumerate(xs):
-            valid_ppls = x['valid_ppls']
+            valid_ppls = x['val_ppls']
             walltimes = opt_walltimes[arch][i]
             plt.plot(walltimes, valid_ppls, color='blue')
         plt.title('Perplexity over wall-clock-time')
@@ -123,13 +123,13 @@ if __name__ == '__main__':
 
             # Generate training + validation PPL plots over epochs for all experiments
             if args.task == 'epochs':
-                lc_path = os.path.join(subdir, 'learning_curves.py')
+                lc_path = os.path.join(subdir, 'learning_curves.npy')
                 x = np.load(lc_path)[()]
                 gen_train_valid_ppl_epoch(x, subdir)
 
             # Generate training + validation PPL plots over walltime for all experiments
             elif args.task == 'walltime':
-                lc_path = os.path.join(subdir, 'learning_curves.py')
+                lc_path = os.path.join(subdir, 'learning_curves.npy')
                 x = np.load(lc_path)[()]
                 # Get walltimes
                 log_path = os.path.join(subdir, 'log.txt')
@@ -144,8 +144,9 @@ if __name__ == '__main__':
                 config_path = os.path.join(subdir, 'exp_config.txt')
                 with open(config_path, 'r') as fp:
                     config = fp.readlines()
-                arch = config[9].split('\t')[-1].strip().lower()    # This is the line where "model" is in the config
-                lc_path = os.path.join(subdir, 'learning_curves.py')
+                arch = config[9].split('    ')[-1].strip().lower()    # This is the line where "model" is in the config
+                print('arch:', arch)
+                lc_path = os.path.join(subdir, 'learning_curves.npy')
                 x = np.load(lc_path)[()]
                 if arch not in arch_ppls:
                     arch_ppls[arch] = [x]
@@ -167,8 +168,8 @@ if __name__ == '__main__':
                 config_path = os.path.join(subdir, 'exp_config.txt')
                 with open(config_path, 'r') as fp:
                     config = fp.readlines()
-                opt = config[12].split('\t')[-1].strip().lower()    # This is the line where "optimizer" is in the config
-                lc_path = os.path.join(subdir, 'learning_curves.py')
+                opt = config[12].split('    ')[-1].split('\t').strip().lower()    # This is the line where "optimizer" is in the config
+                lc_path = os.path.join(subdir, 'learning_curves.npy')
                 x = np.load(lc_path)[()]
                 if opt not in opt_ppls:
                     opt_ppls[arch] = x
