@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 
 
 def clones(module, N):
-    "
+    '''
     A helper function for producing N identical layers (each with their own parameters).
     
     inputs: 
@@ -39,7 +39,7 @@ def clones(module, N):
 
     returns:
         a ModuleList with the copies of the module (the ModuleList is itself also a module)
-    "
+    '''
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 # Problem 1
@@ -57,21 +57,37 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
                   Do not apply dropout on recurrent connections.
     """
     super(RNN, self).__init__()
+    self.emb_size = emb_size
+    self.hidden_size = hidden_size
+    self.vocab_size = vocab_size
+    self.seq_len = seq_len
+    self.num_layers = num_layers
+    self.batch_size = batch_size
 
-    # TODO ========================
-    # Initialization of the parameters of the recurrent and fc layers. 
-    # Your implementation should support any number of stacked hidden layers 
-    # (specified by num_layers), use an input embedding layer, and include fully
-    # connected layers with dropout after each recurrent layer.
-    # Note: you may use pytorch's nn.Linear, nn.Dropout, and nn.Embedding 
-    # modules, but not recurrent modules.
-    #
-    # To create a variable number of parameter tensors and/or nn.Modules 
-    # (for the stacked hidden layer), you may need to use nn.ModuleList or the 
-    # provided clones function (as opposed to a regular python list), in order 
-    # for Pytorch to recognize these parameters as belonging to this nn.Module 
-    # and compute their gradients automatically. You're not obligated to use the
-    # provided clones function.
+    # Use the GPU if you have one
+    if torch.cuda.is_available():
+        self.device = torch.device("cuda") 
+    else:
+        self.device = torch.device("cpu")
+
+    # Embedding layer, input to hidden, output, and dropout (same everywhere)
+    self.em = WordEmbedding(emb_size, vocab_size)
+    self.drop = nn.Dropout(p=(1-dp_keep_prob))
+    self.inp_hid = nn.Linear(emb_size, hidden_size, bias=False)
+    self.out = nn.Linear(hidden_size, vocab_size, bias=True)
+
+    # Account for arbitrary number of hidden layers/rnn connections
+    self.hiddens = nn.ModuleList([self.inp_hid]+list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
+    self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=True) for i in range(num_layers)])
+
+    # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
+    hiddens2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens])
+    self.hiddens = hiddens2
+    rnns2 = nn.ModuleList([rnn.to(self.device) for rnn in self.rnns])
+    self.rnns = rnns2
+
+    # Initialize the weights
+    self.init_weights()
 
   def init_weights(self):
     # TODO ========================
@@ -80,13 +96,28 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly 
     # in the range [-k, k] where k is the square root of 1/hidden_size
 
+    # Initialize the embedding and output weights uniformly
+    self.em.lut.weight.data.uniform_(-0.1, 0.1) 
+    self.out.weight.data.uniform_(-0.1, 0.1)
+
+    # Initialize output biases to 0
+    self.out.bias.data.fill_(0.0)
+
+    # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
+    for i, hid in enumerate(self.hiddens):
+      hid.weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      self.rnns[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      self.rnns[i].bias.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+
+
   def init_hidden(self):
     # TODO ========================
     # initialize the hidden states to zero
     """
     This is used for the first mini-batch in an epoch, only.
     """
-    return # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
+    states = Variable(torch.zeros(self.num_layers, self.batch_size, self.hidden_size))
+    return states # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
   def forward(self, inputs, hidden):
     # TODO ========================
@@ -124,6 +155,52 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
               if you are curious.
                     shape: (num_layers, batch_size, hidden_size)
     """
+
+    for t in range(inputs.size()[0]):  # For each timestep
+      one_input = inputs[t]
+      x = self.em(one_input)  # Through embedding
+      x = self.drop(x)        # Initial dropout on input
+      
+      # If not in first timestep
+      if t != 0:
+        new_prevs = []
+        final_hidden_states = []
+        # Pass through stack
+        for i, hid in enumerate(self.hiddens):
+          x = hid(x)
+          x_act = torch.tanh(x + self.rnns[i](prevs[i]))  # Recurrent
+          new_prevs.append(x_act)   # No dropout on recurrent connections
+          x_drop = self.drop(x_act)
+          x = x_drop                # Pass along the dropped version up the stack
+          final_hidden_states.append(x_drop)
+          # At last step, get the output logit
+          if i == len(self.hiddens)-1:
+            x_out = self.out(x_drop)
+            logits.append(x_out)
+        # Set current step to previous step for next loop
+        prevs = new_prevs
+
+      # If in first timestep
+      else:
+        prevs = []
+        logits = []
+        # Pass through stack
+        for i, hid in enumerate(self.hiddens):
+          x = hid(x)
+          x_act = torch.tanh(x + self.rnns[i](hidden[i]))  # Where hidden is from input 
+          prevs.append(x_act)   # No dropout on recurrent connections
+          x_drop = self.drop(x_act)
+          x = x_drop            # Pass along the dropped version up the stack
+          # At last step, get the output logit
+          if i == len(self.hiddens)-1:
+            x_out = self.out(x_drop)
+            logits.append(x_out)
+
+      # If in last timestep
+      if t == inputs.size()[0]-1:
+        hidden = torch.cat(final_hidden_states)
+        logits = torch.cat(logits)
+
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
@@ -168,6 +245,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def init_weights_uniform(self):
     # TODO ========================
+    pass
 
   def init_hidden(self):
     # TODO ========================
@@ -448,4 +526,4 @@ class MLP(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-return self.w_2(self.dropout(F.relu(self.w_1(x))))
+        return self.w_2(self.dropout(F.relu(self.w_1(x))))
