@@ -71,7 +71,6 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         self.device = torch.device("cpu")
 
     # Embedding layer, input to hidden, output, and dropout (same everywhere)
-    #self.em = nn.Embedding(vocab_size, emb_size)
     self.em = WordEmbedding(emb_size, vocab_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
     self.inp_hid = nn.Linear(emb_size, hidden_size, bias=False)
@@ -98,22 +97,16 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # in the range [-k, k] where k is the square root of 1/hidden_size
 
     # Initialize the embedding and output weights uniformly
-    #nn.init.uniform_(self.em.weight, -0.1, 0.1)
     self.em.lut.weight.data.uniform_(-0.1, 0.1) 
-    #nn.init.uniform_(self.out.weight, -0.1, 0.1)
     self.out.weight.data.uniform_(-0.1, 0.1)
 
     # Initialize output biases to 0
-    #nn.init.zeros_(self.out.bias)
     self.out.bias.data.fill_(0.0)
 
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
     for i, hid in enumerate(self.hiddens):
-      #nn.init.uniform_(hid.weight, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
       hid.weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
-      #nn.init.uniform_(self.rnns[i].weight, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
       self.rnns[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
-      #nn.init.uniform_(self.rnns[i].bias, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
       self.rnns[i].bias.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
 
 
