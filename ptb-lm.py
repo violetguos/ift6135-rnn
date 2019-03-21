@@ -244,6 +244,7 @@ def ptb_iterator(raw_data, batch_size, num_steps):
         data[i] = raw_data[batch_len * i:batch_len * (i + 1)]
 
     epoch_size = (batch_len - 1) // num_steps
+    print('epoch size:', epoch_size)
 
     if epoch_size == 0:
         raise ValueError("epoch_size == 0, decrease batch_size or num_steps")
@@ -382,7 +383,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
             batch = Batch(torch.from_numpy(x).long().to(device))
             model.zero_grad()
             outputs = model.forward(batch.data, batch.mask).transpose(1,0)
-            #print ("outputs.shape", outputs.shape)
         else:
             inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)#.cuda()
             model.zero_grad()

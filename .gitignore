@@ -371,3 +371,6 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# project specific
+*_model_*/
