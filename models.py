@@ -74,12 +74,11 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.em = nn.Embedding(vocab_size, emb_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
     self.inp_hid = nn.Linear(emb_size, hidden_size)
-    self.inp_rnn = nn.Linear(emb_size, hidden_size, bias=False)
     self.out = nn.Linear(hidden_size, vocab_size)
 
     # Account for arbitrary number of hidden layers/rnn connections
-    self.hiddens = nn.ModuleList([self.inp_hid]+list(clones(nn.Linear(hidden_size, hidden_size), num_layers-1)))
-    self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=False) for i in range(num_layers)])
+    self.hiddens = nn.ModuleList([self.inp_hid]+list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
+    self.rnns = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=True) for i in range(num_layers)])
 
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
     hiddens2 = nn.ModuleList([hid.to(self.device) for hid in self.hiddens])
@@ -108,7 +107,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     for i, hid in enumerate(self.hiddens):
       nn.init.uniform_(hid.weight, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
       nn.init.uniform_(self.rnns[i].weight, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
-      nn.init.uniform_(hid.bias, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.rnns[i].bias, -math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
 
   def init_hidden(self):
     # TODO ========================
