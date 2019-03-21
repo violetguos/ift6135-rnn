@@ -27,6 +27,7 @@ standard MLP; the MLP applies *the same* mapping at every position.
 Both the attention and the MLP are applied with Resnet-style skip connections,
 and layer normalization.
 
+
 The complete model consists of the embeddings, the stacked transformer blocks,
 and a linear layer followed by a softmax.
 """
@@ -55,8 +56,6 @@ and a linear layer followed by a softmax.
 # SOFTWARE.
 
 # ----------------------------------------------------------------------------------
-
-
 import torch
 import torch.nn
 from torch.autograd import Variable
@@ -67,9 +66,9 @@ import math
 np = numpy
 import torch.nn.functional as F
 
+
+
 # TODO: implement this class
-
-
 
 
 class MultiHeadedAttention(nn.Module):
@@ -88,20 +87,19 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
-        k = np.sqrt(1/self.n_units)
-
+        k = np.sqrt(1/self.d_k)
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
         # where k is the square root of 1/n_units.
         # Note: the only Pytorch modules you are allowed to use are nn.Linear
         # and nn.Dropout
-        # ETA: you can also use softmax
 
+        # ETA: you can also use softmax
         self.W_Q = nn.Linear(self.n_units, self.d_k)
         self.W_K = nn.Linear(self.n_units, self.d_k)
         self.W_V = nn.Linear(self.n_units, self.d_k)
-        self.W_0 = nn.Linear(self.n_units * self.n_heads, self.n_units)
+        self.W_0 = nn.Linear(self.d_k * self.n_heads, self.n_units)
         self.lin = nn.Linear(self.n_units, self.n_units)
         self.drop = nn.Dropout(dropout)
         # initialize to [-k,k]
@@ -116,7 +114,6 @@ class MultiHeadedAttention(nn.Module):
         torch.nn.init.uniform_(self.W_0.bias, -k, k)
         torch.nn.init.uniform_(self.lin.bias, -k, k)
 
-
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
         # query, key, and value correspond to Q, K, and V in the latex, and
@@ -127,19 +124,18 @@ class MultiHeadedAttention(nn.Module):
         # Also apply dropout to the attention values.
         att = [attention(self, query, key, value, mask=mask)
                 for i in range(self.n_heads)]
-
         # concat tensors
         # x1 = torch.cat(att, dim=1)
         x2 = torch.cat(att, dim=2)
         # print('x1 shape after cat is ', x1.size())
         # print('x2 shape after cat is', x2.size())
-        # might have a dimension issue
         # multiply by W_0
         x = self.W_0(x2)
         # linear layer
         x = self.lin(x)
-        print('output is ', x.size())
+        # print('output is ', x.size())
         return x # size: (batch_size, seq_len, self.n_units)
+
 
 def attention(self, query, key, value, mask=None):
     K = self.W_K(key)
@@ -148,10 +144,12 @@ def attention(self, query, key, value, mask=None):
     # check the brackets for dimseq and dim features
     arg = torch.bmm(Q, K.transpose(1, 2))
     arg = arg / math.sqrt(self.d_k)
-    arg = arg * mask.float() - float(10e-9) * (1 - mask.float())
+    mask = 1.0 - mask.float()
+    mask = mask.abs()
+    arg = arg * mask - float(10e-9) * (1 - mask)
     H = torch.bmm(arg, V)
     H = self.drop(H)
-    print('H is ', H.size())
+    # print('H is ', H.size())
     return H
 
 
@@ -298,6 +296,8 @@ class ResidualSkipConnectionWithLayerNorm(nn.Module):
 
     def forward(self, x, sublayer):
         "Apply residual connection to any sublayer with the same size."
+        # print('shape of x in forward is', x.size())
+        # print('shape of other is', self.dropout(sublayer(self.norm(x))).size())
         return x + self.dropout(sublayer(self.norm(x)))
 
 
