@@ -25,7 +25,7 @@ def get_walltimes(log_path):
     return walltimes
 
 
-def gen_train_valid_ppl_epoch(x, save_dir):
+def gen_train_valid_ppl_epoch(x, save_dir, exp_num):
     train_ppls = x['train_ppls']
     valid_ppls = x['val_ppls']
     epochs = range(len(train_ppls))
@@ -35,11 +35,11 @@ def gen_train_valid_ppl_epoch(x, save_dir):
     plt.xlabel('Epoch')
     plt.ylabel('Perplexity (PPL)')
     plt.legend()
-    plt.savefig(os.path.join(save_dir, 'train_valid_ppl_epoch.png'))
+    plt.savefig(os.path.join(save_dir, 'train_valid_ppl_epoch_{}.png'.format(exp_num)))
     plt.clf()   # Clear
 
 
-def gen_train_valid_ppl_walltime(x, walltimes, save_dir):
+def gen_train_valid_ppl_walltime(x, walltimes, save_dir, exp_num):
     train_ppls = x['train_ppls']
     valid_ppls = x['val_ppls']
     plt.plot(walltimes, train_ppls, color='red', label='Training PPL')
@@ -48,7 +48,7 @@ def gen_train_valid_ppl_walltime(x, walltimes, save_dir):
     plt.xlabel('Wall-clock-time (s)')
     plt.ylabel('Perplexity (PPL)')
     plt.legend()
-    plt.savefig(os.path.join(save_dir, 'train_valid_ppl_walltime.png'))
+    plt.savefig(os.path.join(save_dir, 'train_valid_ppl_walltime_{}.png'.format(exp_num)))
     plt.clf()   # Clear
 
 
@@ -121,12 +121,13 @@ if __name__ == '__main__':
     subdirs = next(os.walk('.'))[1]
     for subdir in subdirs:
         if 'exp' in subdir:
+            exp_num = subdir[-1]    # Since dirs are of format exp1, exp2...
 
             # Generate training + validation PPL plots over epochs for all experiments
             if args.task == 'epochs':
                 lc_path = os.path.join(subdir, 'learning_curves.npy')
                 x = np.load(lc_path)[()]
-                gen_train_valid_ppl_epoch(x, subdir)
+                gen_train_valid_ppl_epoch(x, subdir, exp_num)
 
             # Generate training + validation PPL plots over walltime for all experiments
             elif args.task == 'walltime':
@@ -136,7 +137,7 @@ if __name__ == '__main__':
                 log_path = os.path.join(subdir, 'log.txt')
                 walltimes = get_walltimes(log_path)
                 # Get plots
-                gen_train_valid_ppl_walltime(x, walltimes, subdir)
+                gen_train_valid_ppl_walltime(x, walltimes, subdir, exp_num)
 
             # Generate one validation PPL plot over epochs and walltime over all experiments per each architecture.
             # Do this by first accumulating the data for each arch, then do the plot outside this main if statement.
