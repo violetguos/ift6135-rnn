@@ -1,15 +1,11 @@
 #!/bin/python
 # coding: utf-8
 
-
-
-
-# Code outline/scaffold for
+# Code outline/scaffold for 
 # ASSIGNMENT 2: RNNs, Attention, and Optimization
 # By Tegan Maharaj, David Krueger, and Chin-Wei Huang
 # IFT6135 at University of Montreal
 # Winter 2019
-
 #
 # based on code from:
 #    https://github.com/deeplearningathome/pytorch-language-model/blob/master/reader.py
@@ -17,34 +13,33 @@
 #    https://github.com/teganmaharaj/zoneout/blob/master/zoneout_word_ptb.py
 #    https://github.com/harvardnlp/annotated-transformer
 
-# GENERAL INSTRUCTIONS:
-#    - ! IMPORTANT!
-#      Unless we're otherwise notified we will run exactly this code, importing
-#      your models from models.py to test them. If you find it necessary to
-#      modify or replace this script (e.g. if you are using TensorFlow), you
-#      must justify this decision in your report, and contact the TAs as soon as
-#      possible to let them know. You are free to modify/add to this script for
-#      your own purposes (e.g. monitoring, plotting, further hyperparameter
-#      tuning than what is required), but remember that unless we're otherwise
-#      notified we will run this code as it is given to you, NOT with your
+# GENERAL INSTRUCTIONS: 
+#    - ! IMPORTANT! 
+#      Unless we're otherwise notified we will run exactly this code, importing 
+#      your models from models.py to test them. If you find it necessary to 
+#      modify or replace this script (e.g. if you are using TensorFlow), you 
+#      must justify this decision in your report, and contact the TAs as soon as 
+#      possible to let them know. You are free to modify/add to this script for 
+#      your own purposes (e.g. monitoring, plotting, further hyperparameter 
+#      tuning than what is required), but remember that unless we're otherwise 
+#      notified we will run this code as it is given to you, NOT with your 
 #      modifications.
-#    - We encourage you to read and understand this code; there are some notes
+#    - We encourage you to read and understand this code; there are some notes 
 #      and comments to help you.
-#    - Typically, all of your code to submit should be written in models.py;
+#    - Typically, all of your code to submit should be written in models.py; 
 #      see further instructions at the top of that file / in TODOs.
-#          - RNN recurrent unit
+#          - RNN recurrent unit 
 #          - GRU recurrent unit
 #          - Multi-head attention for the Transformer
-#    - Other than this file and models.py, you will probably also write two
-#      scripts. Include these and any other code you write in your git repo for
+#    - Other than this file and models.py, you will probably also write two 
+#      scripts. Include these and any other code you write in your git repo for 
 #      submission:
 #          - Plotting (learning curves, loss w.r.t. time, gradients w.r.t. hiddens)
-#          - Loading and running a saved model (computing gradients w.r.t. hiddens,
-#            and for sampling from the model
+#          - Loading and running a saved model (computing gradients w.r.t. hiddens, 
+#            and for sampling from the model)
 
-
-# PROBLEM-SPECIFIC INSTRUCTIONS:
-#    - For Problems 1-3, paste the code for the RNN, GRU, and Multi-Head attention
+# PROBLEM-SPECIFIC INSTRUCTIONS:   
+#    - For Problems 1-3, paste the code for the RNN, GRU, and Multi-Head attention 
 #      respectively in your report, in a monospace font.
 #    - For Problem 4.1 (model comparison), the hyperparameter settings you should run are as follows:
 #          --model=RNN --optimizer=ADAM --initial_lr=0.0001 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35 --save_best
@@ -55,32 +50,34 @@
 #                  RNN: train:  120  val: 157
 #                  GRU: train:   65  val: 104
 #          TRANSFORMER:  train:  67  val: 146
-#    - For Problem 4.2 (exploration of optimizers), you will make use of the
+#    - For Problem 4.2 (exploration of optimizers), you will make use of the 
 #      experiments from 4.1, and should additionally run the following experiments:
-#          --model=RNN --optimizer=SGD --initial_lr=0.0001 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35
+#          --model=RNN --optimizer=SGD --initial_lr=0.0001 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35 
 #          --model=GRU --optimizer=SGD --initial_lr=10 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35
 #          --model=TRANSFORMER --optimizer=SGD --initial_lr=20 --batch_size=128 --seq_len=35 --hidden_size=512 --num_layers=6 --dp_keep_prob=.9
 #          --model=RNN --optimizer=SGD_LR_SCHEDULE --initial_lr=1 --batch_size=20 --seq_len=35 --hidden_size=512 --num_layers=2 --dp_keep_prob=0.35
 #          --model=GRU --optimizer=ADAM --initial_lr=0.0001 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35
 #          --model=TRANSFORMER --optimizer=ADAM --initial_lr=0.001 --batch_size=128 --seq_len=35 --hidden_size=512 --num_layers=2 --dp_keep_prob=.9
-#    - For Problem 4.3 (exloration of hyperparameters), do your best to get
-#      better validation perplexities than the settings given for 4.1. You may
-#      try any combination of the hyperparameters included as arguments in this
-#      script's ArgumentParser, but do not implement any additional
-#      regularizers/features. You may (and will probably want to) run a lot of
-#      different things for just 1-5 epochs when you are trying things out, but
+#    - For Problem 4.3 (exloration of hyperparameters), do your best to get 
+#      better validation perplexities than the settings given for 4.1. You may 
+#      try any combination of the hyperparameters included as arguments in this 
+#      script's ArgumentParser, but do not implement any additional 
+#      regularizers/features. You may (and will probably want to) run a lot of 
+#      different things for just 1-5 epochs when you are trying things out, but 
 #      you must report at least 3 experiments on each architecture that have run
 #      for at least 40 epochs.
-#    - For Problem 5, perform all computations / plots based on saved models
-#      from Problem 4.1. NOTE this means you don't have to save the models for
+#    - For Problem 5, perform all computations / plots based on saved models 
+#      from Problem 4.1. NOTE this means you don't have to save the models for 
 #      your exploration, which can make things go faster. (Of course
-#      you can still save them if you like; just add the flag --save_best).
-#    - For Problem 5.1, you can modify the loss computation in this script
-#      (search for "LOSS COMPUTATION" to find the appropriate line. Remember to
+#      you can still save them if you like; just add the flag --save_best). 
+#    - For Problem 5.1, you can modify the loss computation in this script 
+#      (search for "LOSS COMPUTATION" to find the appropriate line. Remember to 
 #      submit your code.
-#    - For Problem 5.3, you must implement the generate method of the RNN and
-#      GRU.  Implementing this method is not considered part of problems 1/2
+#    - For Problem 5.3, you must implement the generate method of the RNN and 
+#      GRU.  Implementing this method is not considered part of problems 1/2 
 #      respectively, and will be graded as part of Problem 5.3
+
+
 import argparse
 import time
 import collections
@@ -96,8 +93,9 @@ np = numpy
 
 # NOTE ==============================================
 # This is where your models are imported
-# from models import RNN, GRU
+from models import RNN, GRU 
 from models import make_model as TRANSFORMER
+
 
 ##############################################################################
 #
@@ -126,7 +124,7 @@ parser.add_argument('--hidden_size', type=int, default=200,
 parser.add_argument('--save_best', action='store_true',
                     help='save the model for the best validation performance')
 parser.add_argument('--num_layers', type=int, default=2,
-                    help='number of LSTM layers')
+                    help='number of hidden layers in RNN/GRU, or number of transformer blocks in TRANSFORMER')
 
 # Other hyperparameters you may want to tune in your exploration
 parser.add_argument('--emb_size', type=int, default=200,
@@ -134,7 +132,8 @@ parser.add_argument('--emb_size', type=int, default=200,
 parser.add_argument('--num_epochs', type=int, default=40,
                     help='number of epochs to stop after')
 parser.add_argument('--dp_keep_prob', type=float, default=0.35,
-                    help='dropout *keep* probability (dp_keep_prob=0 means no dropout')
+                    help='dropout *keep* probability. drop_prob = 1-dp_keep_prob \
+                    (dp_keep_prob=1 means no dropout)')
 
 # Arguments that you may want to make use of / implement more code for
 parser.add_argument('--debug', action='store_true') 
@@ -161,7 +160,7 @@ argsdict['code_file'] = sys.argv[0]
 # Use the model, optimizer, and the flags passed to the script to make the 
 # name for the experimental dir
 print("\n########## Setting Up Experiment ######################")
-flags = [flag.lstrip('--') for flag in sys.argv[1:]]
+flags = [flag.lstrip('--').replace('/', '').replace('\\', '') for flag in sys.argv[1:]]
 experiment_path = os.path.join(args.save_dir+'_'.join([argsdict['model'],
                                          argsdict['optimizer']] 
                                          + flags))
@@ -197,7 +196,7 @@ else:
 
 ###############################################################################
 #
-# DATA LOADING & PROCESSING
+# LOADING & PROCESSING
 #
 ###############################################################################
 
@@ -245,6 +244,7 @@ def ptb_iterator(raw_data, batch_size, num_steps):
         data[i] = raw_data[batch_len * i:batch_len * (i + 1)]
 
     epoch_size = (batch_len - 1) // num_steps
+    print('epoch size:', epoch_size)
 
     if epoch_size == 0:
         raise ValueError("epoch_size == 0, decrease batch_size or num_steps")
@@ -257,7 +257,7 @@ def ptb_iterator(raw_data, batch_size, num_steps):
 
 class Batch:
     "Data processing for the transformer. This class adds a mask to the data."
-    def __init__(self, x, pad=0):
+    def __init__(self, x, pad=-1):
         self.data = x
         self.mask = self.make_mask(self.data, pad)
     
@@ -323,7 +323,7 @@ elif args.model == 'TRANSFORMER':
 else:
   print("Model type not recognized.")
 
-model.to(device)
+model = model.to(device)
 
 # LOSS FUNCTION
 loss_fn = nn.CrossEntropyLoss()
@@ -372,7 +372,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     start_time = time.time()
     if args.model != 'TRANSFORMER':
         hidden = model.init_hidden()
-        hidden.to(device)
+        hidden = hidden.to(device)
     costs = 0.0
     iters = 0
     losses = []
@@ -414,7 +414,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                         p.data.add_(-lr, p.grad.data)
             if step % (epoch_size // 10) == 10:
                 print('step: '+ str(step) + '\t' \
-                    + 'loss: '+ str(costs) + '\t' \
+                    + "loss (sum over all examples' seen this epoch):" + str(costs) + '\t' \
                     + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
     return np.exp(costs / iters), losses
 
