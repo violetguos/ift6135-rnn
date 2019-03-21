@@ -74,7 +74,7 @@ def gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, save_dir):
         plt.title('Perplexity over wall-clock-time')
         plt.xlabel('Wall-clock-time (s)')
         plt.ylabel('Perplexity (PPL)')
-        plt.savefig(os.path.join(save_dir, '{}_ppl_epoch.png'.format(arch)))
+        plt.savefig(os.path.join(save_dir, '{}_ppl_walltime.png'.format(arch)))
         plt.clf()   # Clear
 
 
@@ -95,12 +95,12 @@ def gen_valid_opt_ppl_walltime(opt_ppls, opt_walltimes, save_dir):
     for opt, xs in opt_ppls.items():
         for i, x in enumerate(xs):
             valid_ppls = x['val_ppls']
-            walltimes = opt_walltimes[arch][i]
+            walltimes = opt_walltimes[opt][i]
             plt.plot(walltimes, valid_ppls, color='blue')
         plt.title('Perplexity over wall-clock-time')
         plt.xlabel('Wall-clock-time (s)')
         plt.ylabel('Perplexity (PPL)')
-        plt.savefig(os.path.join(save_dir, '{}_ppl_epoch.png'.format(opt)))
+        plt.savefig(os.path.join(save_dir, '{}_ppl_walltime.png'.format(opt)))
         plt.clf()   # Clear
 
 
@@ -111,6 +111,7 @@ if __name__ == '__main__':
     parser.add_argument('task', type=str,
                         help='The plots you want to generate. Possible values are: {}'.format(tasks))
     args = parser.parse_args()
+    plots_dir = os.path.join('.', 'plots')
 
     # For collection
     arch_ppls, arch_walltimes = {}, {}
@@ -145,7 +146,6 @@ if __name__ == '__main__':
                 with open(config_path, 'r') as fp:
                     config = fp.readlines()
                 arch = config[9].split('    ')[-1].strip().lower()    # This is the line where "model" is in the config
-                print('arch:', arch)
                 lc_path = os.path.join(subdir, 'learning_curves.npy')
                 x = np.load(lc_path)[()]
                 if arch not in arch_ppls:
@@ -168,13 +168,13 @@ if __name__ == '__main__':
                 config_path = os.path.join(subdir, 'exp_config.txt')
                 with open(config_path, 'r') as fp:
                     config = fp.readlines()
-                opt = config[12].split('    ')[-1].split('\t').strip().lower()    # This is the line where "optimizer" is in the config
+                opt = config[12].split('    ')[-1].strip().lower()    # This is the line where "optimizer" is in the config
                 lc_path = os.path.join(subdir, 'learning_curves.npy')
                 x = np.load(lc_path)[()]
                 if opt not in opt_ppls:
-                    opt_ppls[arch] = x
+                    opt_ppls[opt] = [x]
                 else:
-                    opt_ppls[arch].append(x)
+                    opt_ppls[opt].append(x)
 
                 # Collect walltimes
                 log_path = os.path.join(subdir, 'log.txt')
@@ -186,10 +186,10 @@ if __name__ == '__main__':
 
     # Generate plots for architecture
     if args.task == 'architecture':
-        gen_valid_arch_ppl_epoch(arch_ppls, '.')
-        gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, '.')
+        gen_valid_arch_ppl_epoch(arch_ppls, plots_dir)
+        gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, plots_dir)
 
     # Generate plots for optimizer
     elif args.task == 'optimizer':
-        gen_valid_opt_ppl_epoch(opt_ppls, '.')
-        gen_valid_opt_ppl_epoch(opt_ppls, opt_walltimes, '.')
+        gen_valid_opt_ppl_epoch(opt_ppls, plots_dir)
+        gen_valid_opt_ppl_walltime(opt_ppls, opt_walltimes, plots_dir)
