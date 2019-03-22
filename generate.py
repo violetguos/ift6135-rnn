@@ -45,7 +45,7 @@ if __name__ == '__main__':
     print('     Model loaded.')
 
     # Set up the data (to be able to sample initial words)
-    word_to_id, id_2_word = prepare_data()
+    _, _, word_to_id, id_2_word = prepare_data()
 
     # Initialize hidden state
     hidden = model.init_hidden()
