@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 
 from utils import Experiment, prepare_data, repackage_hidden, ptb_iterator
-from tqdm import tqdm
 
 if __name__ == '__main__':
     # Parse arguments
@@ -41,7 +40,7 @@ if __name__ == '__main__':
     _, valid_data, _, _ = prepare_data()
 
     # Set up loss function
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(reduction='none')
 
     # Initialize hidden state
     hidden = model.init_hidden()
@@ -49,7 +48,8 @@ if __name__ == '__main__':
 
     # Loop through validation set (one epoch)
     mean_losses = torch.zeros(seq_len, device=device)
-    for step, (x, y) in enumerate(tqdm(ptb_iterator(valid_data, batch_size, seq_len))):
+    for step, (x, y) in enumerate(ptb_iterator(valid_data, batch_size, seq_len)):
+        print('Step {}'.format(step))
         num_batches += 1
 
         # On David's recommendation
