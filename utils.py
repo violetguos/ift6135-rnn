@@ -108,3 +108,16 @@ def _build_vocab(filename):
 def _file_to_word_ids(filename, word_to_id):
     data = _read_words(filename)
     return [word_to_id[word] for word in data if word in word_to_id]
+
+
+def save_gradient(loss, hiddens):
+    """
+    tired friday coding, we can compute the grad and save it to a numpy npz
+    !Not tested version!
+    :param loss:
+    :param hiddens:
+    :return:
+    """
+    grad = torch.autograd.grad(loss, hiddens.detach().cpu(), retain_graph=True)
+    grad_res = grad.numpy()
+    np.save(os.path.join('.', 'avg_5_2.npy'), grad_res)
