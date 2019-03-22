@@ -87,7 +87,7 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
-        k = np.sqrt(1/self.d_k)
+        k = np.sqrt(1/self.n_heads)
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
@@ -141,12 +141,14 @@ def attention(self, query, key, value, mask=None):
     K = self.W_K(key)
     Q = self.W_Q(query)
     V = self.W_V(value)
-    # check the brackets for dimseq and dim features
     arg = torch.bmm(Q, K.transpose(1, 2))
     arg = arg / math.sqrt(self.d_k)
-    mask = 1.0 - mask.float()
-    mask = mask.abs()
+    # mask = 1.0 - mask.float()
+    # mask = mask.abs()
+
+    mask = mask.float()
     arg = arg * mask - float(10e-9) * (1 - mask)
+    arg = F.softmax(arg)
     H = torch.bmm(arg, V)
     H = self.drop(H)
     # print('H is ', H.size())
