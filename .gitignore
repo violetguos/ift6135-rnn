@@ -1,3 +1,10 @@
+.idea
+.idea/
+*.out
+*.err
+GRU_*/
+*.pt
+
 #########Latex############
 ## Core latex/pdflatex auxiliary files:
 *.aux
