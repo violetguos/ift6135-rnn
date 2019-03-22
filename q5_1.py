@@ -24,17 +24,16 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    # To change for transformer
-    batch_size = 20
-    seq_len = 35
-    num_batches = 0
-
     # Set up the model
     print('Loading model...')
     exp = Experiment(args.exp_dir)
     model = exp.load_model()
     model = model.to(device)
     print('     Model loaded.')
+
+    batch_size = model.batch_size
+    seq_len = model.seq_len
+    num_batches = 0
 
     # Set up the validation data
     _, valid_data, _, _ = prepare_data()
@@ -71,6 +70,8 @@ if __name__ == '__main__':
         mean_loss = loss.detach().mean(0)
         # Keep running sum
         mean_losses += mean_loss
+
+    # On David's formulation
     final_losses = (mean_losses / num_batches).detach().cpu().numpy()
 
     # Log/save
