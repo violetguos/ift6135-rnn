@@ -322,11 +322,6 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     # TODO ========================
     # Initialize the embedding and output weights uniformly
     nn.init.uniform_(self.em.weight, -0.1, 0.1)
-    nn.init.uniform_(self.out.weight, -0.1, 0.1)
-
-
-    # Initialize output biases to 0
-    nn.init.zeros_(self.out.bias)
 
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
     for i in range(self.num_layers):
@@ -352,6 +347,11 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
       # rnn_u, W_h
       nn.init.uniform_(self.rnns_w[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+
+    # Initialize output biases to 0
+    nn.init.zeros_(self.out.bias)
+
+    nn.init.uniform_(self.out.weight, -0.1, 0.1)
 
 
 
