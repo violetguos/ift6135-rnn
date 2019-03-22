@@ -267,8 +267,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         self.device = torch.device("cpu")
 
     # Embedding layer, input to hidden, output, and dropout (same everywhere)
-    # self.em = nn.Embedding(vocab_size, emb_size)
-    self.em = WordEmbedding(emb_size, vocab_size)
+    self.em = nn.Embedding(vocab_size, emb_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
     # transform the input
     # self.inp = nn.Linear(emb_size, hidden_size)
@@ -281,19 +280,19 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     # Account for arbitrary number of hidden layers/rnn connections
     # W_h . h_t
     if num_layers == 1:
-      self.hiddens_u_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=True)])
+      self.hiddens_u_reset = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
       self.rnns_w_reset = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
-      self.hiddens_u_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=True)])
+      self.hiddens_u_forget = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
       self.rnns_w_forget = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
-      self.hiddens_u = nn.ModuleList([nn.Linear(hidden_size, hidden_size, bias=True)])
+      self.hiddens_u = nn.ModuleList([nn.Linear(hidden_size, hidden_size)])
       self.rnns_w = nn.ModuleList([self.inp_rnn]+[nn.Linear(hidden_size, hidden_size, bias=False)])
 
     else:
-      self.hiddens_u_reset = nn.ModuleList(list(clones(nn.Linear(hidden_size, hidden_size, bias=True), num_layers)))
+      self.hiddens_u_reset = nn.ModuleList(list(clones(nn.Linear(hidden_size, hidden_size), num_layers)))
       self.rnns_w_reset =  nn.ModuleList([self.inp_rnn] + list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
-      self.hiddens_u_forget = nn.ModuleList( list(clones(nn.Linear(hidden_size, hidden_size, bias=True), num_layers)))
+      self.hiddens_u_forget = nn.ModuleList( list(clones(nn.Linear(hidden_size, hidden_size), num_layers)))
       self.rnns_w_forget = nn.ModuleList([self.inp_rnn] + list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
-      self.hiddens_u = nn.ModuleList(list(clones(nn.Linear(hidden_size, hidden_size, bias=True), num_layers)))
+      self.hiddens_u = nn.ModuleList(list(clones(nn.Linear(hidden_size, hidden_size), num_layers)))
       self.rnns_w = nn.ModuleList([self.inp_rnn] + list(clones(nn.Linear(hidden_size, hidden_size, bias=False), num_layers-1)))
 
     # Explicitly cast hiddens and rnns to use GPU when available (yes, a hack, but necessary)
@@ -318,39 +317,43 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     # Initialize the weights
     self.init_weights_uniform()
 
+
   def init_weights_uniform(self):
     # TODO ========================
     # Initialize the embedding and output weights uniformly
-    # nn.init.uniform_(self.em.weight, -0.1, 0.1)
-    self.em.lut.weight.data.uniform_(-0.1, 0.1)
-    # nn.init.uniform_(self.out.weight, -0.1, 0.1)
-    self.out.weight.data.uniform_(-0.1, 0.1)
+    nn.init.uniform_(self.em.weight, -0.1, 0.1)
+    nn.init.uniform_(self.out.weight, -0.1, 0.1)
+
 
     # Initialize output biases to 0
-    # nn.init.zeros_(self.out.bias)
-    self.out.bias.data.fill_(0.0)
+    nn.init.zeros_(self.out.bias)
 
     # Initialize all other weights and biases uniformly, over sqrt(1/hidden_size)
     for i in range(self.num_layers):
       # reset gates weights and bias, U_r
-      self.hiddens_u_reset[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.hiddens_u_reset[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.hiddens_u_reset[i].bias, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
 
       # reset gates W_r
-      self.rnns_w_reset[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.rnns_w_reset[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
 
       # forget gate weights and bias, U_z
-      self.hiddens_u_forget[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
-      self.hiddens_u_forget[i].bias.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.hiddens_u_forget[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.hiddens_u_forget[i].bias, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
 
       # forget gate, W_z
-      self.rnns_w_forget[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.rnns_w_forget[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+      # nn.init.uniform(self.rnns_w_forget[i].bias, -sqrt(1 / hidden_size), sqrt(1 / hidden_size))
+      # nn.init.zeros_(self.rnns_w_forget[i].bias)
 
       # hiddens_u, U_h
-      self.hiddens_u[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
-      self.hiddens_u[i].bias.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.hiddens_u[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.hiddens_u[i].bias, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
 
       # rnn_u, W_h
-      self.rnns_w[i].weight.data.uniform_(-math.sqrt(1 / self.hidden_size), math.sqrt(1 / self.hidden_size))
+      nn.init.uniform_(self.rnns_w[i].weight, -np.sqrt(1 / self.hidden_size), np.sqrt(1 / self.hidden_size))
+
+
 
 
   def init_hidden(self):
