@@ -87,7 +87,7 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
-        k = np.sqrt(1/self.n_heads)
+        k = np.sqrt(1/self.d_k)
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
