@@ -230,6 +230,56 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         - Sampled sequences of tokens
                     shape: (generated_seq_len, batch_size)
     """
+    logits = []
+    for t in range(generated_seq_len):  # For each timestep
+      one_input = input
+      # Hack casting
+      x = self.em(one_input.long())
+      x = self.drop(x)
+
+      # If not in first timestep
+      if t != 0:
+        new_prevs = []
+        final_hidden_states = []
+        # Pass through stack
+        for i, hid in enumerate(self.hiddens):
+          x = hid(x)
+          x_act = torch.tanh(x + self.rnns[i](prevs[i]))  # Recurrent
+          new_prevs.append(x_act)   # No dropout on recurrent connections
+          x_drop = self.drop(x_act)
+          x = x_drop                # Pass along the dropped version up the stack
+          final_hidden_states.append(x_drop)
+          # At last step, get the output logit
+          if i == len(self.hiddens)-1:
+            x_out = self.out(x_drop)
+            logits.append(x_out)
+        # Set current step to previous step for next loop
+        prevs = new_prevs
+
+      # If in first timestep
+      else:
+        prevs = []
+        logits = []
+        # Pass through stack
+        for i, hid in enumerate(self.hiddens):
+          x = hid(x)
+          x_act = torch.tanh(x + self.rnns[i](hidden[i]))  # Where hidden is from input 
+          prevs.append(x_act)   # No dropout on recurrent connections
+          x_drop = self.drop(x_act)
+          x = x_drop            # Pass along the dropped version up the stack
+          # At last step, get the output logit
+          if i == len(self.hiddens)-1:
+            x_out = self.out(x_drop)
+            logits.append(x_out)
+
+
+
+    logits = torch.cat(logits)
+    # end of copying code from forward
+    logits = logits.view(generated_seq_len, self.batch_size, self.vocab_size)
+    # print("logits", logits.size())
+    samples = torch.distributions.Categorical(logits=logits).sample()
+    # print("in models generate samples", samples.size())
 
     return samples
 

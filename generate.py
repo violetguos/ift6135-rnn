@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # Generate num_sequences sequences
     one_inp = word_to_id['<eos>']   # Seed with <eos> token
     inp = torch.from_numpy(np.array([one_inp for i in range(args.num_sequences)]))
-    # print("size inp", inp.size())
+    print(inp.type())
     samples = model.generate(inp, hidden, args.length)
     # necessary
     samples = samples.transpose(0, 1)
