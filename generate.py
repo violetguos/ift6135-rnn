@@ -54,16 +54,21 @@ if __name__ == '__main__':
     # Generate num_sequences sequences
     one_inp = word_to_id['<eos>']   # Seed with <eos> token
     inp = torch.from_numpy(np.array([one_inp for i in range(args.num_sequences)]))
+    # print("size inp", inp.size())
     samples = model.generate(inp, hidden, args.length)
+    # necessary
+    samples = samples.transpose(0, 1)
 
     # Separate out the sequences and build sentences from them
     sequences = []
     for sample in samples:
-        words = [id_2_word[i] for i in sample]
-        sequence = words.join(' ')
+        # print('sample size', sample.size())
+
+        words = [id_2_word[i.item()] for i in sample]
+        sequence = ' '.join(words)
         print(sequence)
         sequences.append(sequence)
 
     # Save to log
-    log_sequences(sequences, exp.config['model'], args.num_sequences, args.num_length, sequence_dir)
+    log_sequences(sequences, exp.config['model'], args.num_sequences, args.length, sequence_dir)
     print('Sequences saved.')

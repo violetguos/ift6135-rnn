@@ -428,6 +428,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       forget = x
       h_tilde_t = x
       final_hidden_states = []
+      new_prevs = []
+
       if t ==0:  # If in first timestep
         prevs = hidden
 
@@ -459,7 +461,9 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     logits = torch.cat(logits_list)
     # end of copying code from forward
     logits = logits.view(generated_seq_len, self.batch_size, self.vocab_size)
+    # print("logits", logits.size())
     samples = torch.distributions.Categorical(logits=logits).sample()
+    # print("in models generate samples", samples.size())
 
     return samples
 
