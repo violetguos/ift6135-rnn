@@ -71,6 +71,7 @@ import torch.nn.functional as F
 # TODO: implement this class
 
 
+
 class MultiHeadedAttention(nn.Module):
     def __init__(self, n_heads, n_units, dropout=0.35):
         """
@@ -103,6 +104,7 @@ class MultiHeadedAttention(nn.Module):
         self.lin = nn.Linear(self.n_units, self.n_units)
         self.drop = nn.Dropout(dropout)
         # initialize to [-k,k]
+
         torch.nn.init.uniform_(self.W_Q.weight, -k, k)
         torch.nn.init.uniform_(self.W_K.weight, -k, k)
         torch.nn.init.uniform_(self.W_V.weight, -k, k)
@@ -122,31 +124,29 @@ class MultiHeadedAttention(nn.Module):
         # As described in the .tex, apply input masking to the softmax
         # generating the "attention values" (i.e. A_i in the .tex)
         # Also apply dropout to the attention values.
+
+        # run attention for each head and store in a list
         att = [attention(self, query, key, value, mask=mask)
                 for i in range(self.n_heads)]
-        # concat tensors
-        # x1 = torch.cat(att, dim=1)
+        # concat tensors in list
         x2 = torch.cat(att, dim=2)
-        # print('x1 shape after cat is ', x1.size())
-        # print('x2 shape after cat is', x2.size())
         # multiply by W_0
         x = self.W_0(x2)
         # linear layer
         x = self.lin(x)
-        # print('output is ', x.size())
         return x # size: (batch_size, seq_len, self.n_units)
 
 
 def attention(self, query, key, value, mask=None):
+    # pass through the weight matrices
     K = self.W_K(key)
     Q = self.W_Q(query)
     V = self.W_V(value)
+    # generate the argument for the softmax
     arg = torch.bmm(Q, K.transpose(1, 2))
     arg = arg / math.sqrt(self.d_k)
-    # mask = 1.0 - mask.float()
-    # mask = mask.abs()
-
-    mask = mask.float()
+    # flip  and apply the mask with modified softmax
+    mask = (1.0 - mask.float()).abs()
     arg = arg * mask - float(10e-9) * (1 - mask)
     arg = F.softmax(arg)
     H = torch.bmm(arg, V)
