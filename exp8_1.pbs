@@ -5,4 +5,4 @@
 
 cd /home/$USER/hw2/ift6135-rnn
 
-s_exec python -u ptb-lm.py --model=GRU --optimizer=ADAM --initial_lr=0.00015 --batch_size=32 --seq_len=35 --hidden_size=1024 --num_layers=2 --dp_keep_prob=0.35 --save_dir exp8_1
+s_exec python -u ptb-lm.py --model=GRU --optimizer=ADAM --initial_lr=0.00015 --batch_size=32 --seq_len=35 --hidden_size=1024 --num_layers=2 --dp_keep_prob=0.35 --save_best --save_dir exp8_1
