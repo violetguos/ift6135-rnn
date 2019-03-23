@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from utils import Experiment, prepare_data, repackage_hidden, ptb_iterator
+from utils import Experiment, prepare_data, repackage_hidden, ptb_iterator, save_gradient
 
 if __name__ == '__main__':
     # Parse arguments
@@ -62,29 +62,33 @@ if __name__ == '__main__':
 
         # We want to keep track of the gradients at each hidden layer,
         # over each timestep. So install hooks to the hidden layers
-        def register_grad_hook(tensor):
+        '''def register_grad_hook(tensor):
             def hook(grad):
                 tensor.hidden_grad = grad
             tensor.register_backward_hook(hook)
 
         for hidden in model.hiddens:
-            register_grad_hook(hidden)
+            register_grad_hook(hidden)'''
 
         # Calculate loss
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
 
         # Now backprop
-        loss.backward()
+        #loss.backward()
 
         # Collect per-timestep loss wrt hidden states, of all t=1, t=2, ...
-        mean_losses = torch.stack(model.hiddens).mean(1)
+        #mean_losses = torch.stack(model.hiddens).mean(1)
+
+        print('hidden', hidden.requires_grad)
+        print('loss', loss.requires_grad)
+        grads = save_gradient(loss, hidden)
 
         # Take Euclidean norm
-        normed_losses = mean_losses.norm(p=2, dim=-1)
+        normed_grads = mean_grads.norm(p=2, dim=-1)
 
         # Rescale the values of each curve to [0, 1] (Tegan's formulation)
-        scaled_losses = (normed_losses - normed_losses.min()) / \
-                         (normed_losses.max() - normed_losses.min())
+        scaled_grads = (normed_grads - normed_grads.min()) / \
+                         (normed_grads.max() - normed_grads.min())
 
         # Log/save
-        np.save(os.path.join('.', 'avg_5_2.npy'), scaled_losses)
+        np.save(os.path.join('.', 'avg_5_2.npy'), scaled_grads)
