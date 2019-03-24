@@ -415,8 +415,6 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     logits_list = []
 
 
-
-
     for t in range(inputs.size()[0]):  # For each timestep
       one_input = inputs[t]
       x = self.em(one_input)
@@ -476,8 +474,9 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
                     shape: (generated_seq_len, batch_size)
     """
     logits_list = []
+    one_input = input
     for t in range(generated_seq_len):  # For each timestep
-      one_input = input
+
       x = self.em(one_input)
       x = self.drop(x)
 
@@ -510,6 +509,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         final_hidden_states.append(h_t_drop)
 
         x_out = self.out(h_t_drop)
+      one_input = x_out
+      one_input = torch.distributions.Categorical(logits=one_input).sample()
 
       prevs = new_prevs
       logits_list.append(x_out)
