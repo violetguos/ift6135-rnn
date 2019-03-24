@@ -8,7 +8,6 @@ import numpy as np
 import argparse
 import os
 
-
 def get_walltimes(log_path):
     # Walltime is the cumulative sum of time each epoch takes
     with open(log_path, 'r') as fp:
