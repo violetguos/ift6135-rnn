@@ -9,7 +9,8 @@ import numpy as np
 
 if __name__ == '__main__':
     # Load
-    x = np.load(os.path.join('.', 'avg_5_2.npy'))
+    x = np.load(os.path.join('.', 'avg_5_2_RNN.npy'))
+    #x2 = np.load(os.path.join('.', 'avg_5_2_GRU.npy'))
 
     # Plot
     timesteps = range(34) #(!) magic number cuz we aint got no time

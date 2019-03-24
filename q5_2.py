@@ -60,42 +60,33 @@ if __name__ == '__main__':
         targets = torch.from_numpy(y.astype(np.int64)).contiguous().to(device)
         tt = torch.squeeze(targets.view(-1, batch_size * seq_len))
 
-
-
         # Calculate loss
         loss = loss_fn(outputs.contiguous().view(-1, model.vocab_size), tt)
 
         # Now backprop
         loss.backward(retain_graph=True)
 
-
-
+        # Get hidden gradients
         hidden_dict = model.hidden_dict
-        # print("hidden_dict len", len(hidden_dict))
-        # print("hidden_dict[0] len", len(hidden_dict[1]))
-        # print("hidden_dict[0][0] shape", hidden_dict[0][0].size())
-        # hidden_dict len 35
-        # hidden_dict[0] len 2
-        # hidden_dict[0][0] shape torch.Size([20, 1500])
-
         mean_grads = []
-        for i in range(34): #range(1):
-            print("time step {}".format(i))
-            grad = torch.autograd.grad(loss, hidden_dict[i][0], retain_graph=True)
-            # grad[0] is for the 0th layer
-            # mean(1) is for the axis of hidden units
-            mean_grads.append(grad[0].mean(1))
-            # print("grad[0] mean(1)", grad[0].mean(1))
-        print("len mean_grads", len(mean_grads))
+        for t in range(34):     #range(1):
+            print("time step {}".format(t))
+            to_concat = []
+            grad = torch.autograd.grad(loss, hidden_dict[t], retain_graph=True)
+
+            # On David's suggestion
+            # concatenate the gradients for all hidden layers (at each timestep)
+            grad = torch.cat(grad, dim=0)
+            mean_grads.append(grad.mean(0))
         mean_grads = torch.stack(mean_grads)
-        print("mean_grads", mean_grads.size())
+
         # Take Euclidean norm
         normed_grads = mean_grads.norm(p=2, dim=-1)
-        print("normed_grads", normed_grads)
+
         # Rescale the values of each curve to [0, 1] (Tegan's formulation)
         scaled_grads = (normed_grads - normed_grads.min()) / \
                          (normed_grads.max() - normed_grads.min())
 
         # Log/save
         print(scaled_grads)
-        np.save(os.path.join('.', 'avg_5_2.npy'), scaled_grads)
+        np.save(os.path.join('.', 'avg_5_2_{}.npy'.format(exp.config['model'])), scaled_grads)

@@ -44,7 +44,7 @@ def clones(module, N):
 
 # Problem 1
 class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities.
-  def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob, get_grad=False):
+  def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
     """
     emb_size:     The number of units in the input embeddings
     hidden_size:  The number of hidden units per layer
@@ -63,8 +63,6 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.seq_len = seq_len
     self.num_layers = num_layers
     self.batch_size = batch_size
-
-    self.get_grad = get_grad
 
     # Use the GPU if you have one
     if torch.cuda.is_available():
@@ -90,6 +88,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
     # Initialize the weights
     self.init_weights()
+
+    # Set up gradient storage
+    self.hidden_dict = [None] * seq_len
 
   def init_weights(self):
     # TODO ========================
@@ -201,7 +202,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           if i == len(self.hiddens)-1:
             x_out = self.out(x_drop)
             logits.append(x_out)
-        self.hidden_dict[t] = new_prevs
+        self.hidden_dict[t] = prevs
         for i in range(self.num_layers):
             self.hidden_dict[t][i].retain_grad()
 
