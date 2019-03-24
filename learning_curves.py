@@ -18,10 +18,12 @@ def get_walltimes(log_path):
     for i, time in enumerate(epoch_times):
         if i == 0:
             walltimes.append(time)
-            prev_time = time
+            run_time = time
         else:
-            time = time + prev_time
-            walltimes.append(time)
+            # print('time is',time)
+            # print('prev time is',prev_time)
+            run_time = time + run_time
+            walltimes.append(run_time)
     return walltimes
 
 
@@ -44,6 +46,8 @@ def gen_train_valid_ppl_walltime(x, walltimes, save_dir, exp_num):
     valid_ppls = x['val_ppls']
     plt.plot(walltimes, train_ppls, color='red', label='Training PPL')
     plt.plot(walltimes, valid_ppls, color='blue', label='Validation PPL')
+    print('exp number', exp_num)
+    print('walltimes are' ,walltimes)
     plt.title('Perplexity over wall-clock-time')
     plt.xlabel('Wall-clock-time (s)')
     plt.ylabel('Perplexity (PPL)')
