@@ -12,7 +12,7 @@ if __name__ == '__main__':
     x = np.load(os.path.join('.', 'avg_5_2.npy'))
 
     # Plot
-    timesteps = range(34)
+    timesteps = range(34) #(!) magic number cuz we aint got no time
     plt.plot(timesteps, x)
     plt.title('Norm of loss gradients at final time step over time')
     plt.xlabel('Timestep')

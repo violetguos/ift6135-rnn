@@ -183,7 +183,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
             logits.append(x_out)
         # Set current step to previous step for next loop
         prevs = new_prevs
-
+        self.hidden_dict[t] = new_prevs
+        for i in range(self.num_layers):
+            self.hidden_dict[t][i].retain_grad()
       # If in first timestep
       else:
         prevs = []
@@ -199,6 +201,11 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           if i == len(self.hiddens)-1:
             x_out = self.out(x_drop)
             logits.append(x_out)
+        self.hidden_dict[t] = new_prevs
+        for i in range(self.num_layers):
+            self.hidden_dict[t][i].retain_grad()
+
+
 
       # If in last timestep
       if t == inputs.size()[0]-1:
@@ -233,8 +240,9 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
                     shape: (generated_seq_len, batch_size)
     """
     logits = []
+    one_input = input
+
     for t in range(generated_seq_len):  # For each timestep
-      one_input = input
       # Hack casting
       x = self.em(one_input.long())
       x = self.drop(x)
@@ -256,6 +264,8 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
             x_out = self.out(x_drop)
             logits.append(x_out)
         # Set current step to previous step for next loop
+        one_input = x_out
+        one_input = torch.distributions.Categorical(logits=one_input).sample()
         prevs = new_prevs
 
       # If in first timestep
@@ -273,7 +283,8 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           if i == len(self.hiddens)-1:
             x_out = self.out(x_drop)
             logits.append(x_out)
-
+        one_input = x_out
+        one_input = torch.distributions.Categorical(logits=one_input).sample()
 
 
     logits = torch.cat(logits)
