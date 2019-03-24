@@ -319,8 +319,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         self.device = torch.device("cpu")
 
     # Embedding layer, input to hidden, output, and dropout (same everywhere)
-    # self.em = nn.Embedding(vocab_size, emb_size)
-    self.em = WordEmbedding(emb_size, vocab_size)
+    self.em = nn.Embedding(vocab_size, emb_size)
+    # self.em = WordEmbedding(emb_size, vocab_size)
     self.drop = nn.Dropout(p=(1-dp_keep_prob))
     # transform the input
     # self.inp = nn.Linear(emb_size, hidden_size)
@@ -369,12 +369,13 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
     # Initialize the weights
     self.init_weights_uniform()
+    self.hidden_dict = [None] * seq_len
 
   def init_weights_uniform(self):
     # TODO ========================
     # Initialize the embedding and output weights uniformly
     # nn.init.uniform_(self.em.weight, -0.1, 0.1)
-    self.em.lut.weight.data.uniform_(-0.1, 0.1)
+    self.em.weight.data.uniform_(-0.1, 0.1)
     # nn.init.uniform_(self.out.weight, -0.1, 0.1)
     self.out.weight.data.uniform_(-0.1, 0.1)
 
@@ -412,7 +413,10 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     return states # a parameter tensor of shape (self.num_layers, self.batch_size, self.hidden_size)
 
   def forward(self, inputs, hidden):
+
     logits_list = []
+
+
     for t in range(inputs.size()[0]):  # For each timestep
       one_input = inputs[t]
       x = self.em(one_input)
@@ -422,23 +426,21 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
       h_tilde_t = x
       final_hidden_states = []
       new_prevs = []
-      if t == 0:  # If in first timestep
-        prevs = hidden
+
 
       for i in range(self.num_layers):
-        # print("prevs[i]", prevs[i].size()) # no need to transform input in hiddens????
-        reset = self.rnns_w_reset[i](reset) + self.hiddens_u_reset[i](prevs[i])
+        reset = self.rnns_w_reset[i](reset) + self.hiddens_u_reset[i](hidden[i])
         reset_act = self.act_reset(reset)
 
-        forget = self.rnns_w_forget[i](forget) + self.hiddens_u_forget[i](prevs[i])
+        forget = self.rnns_w_forget[i](forget) + self.hiddens_u_forget[i](hidden[i])
         forget_act = self.act_forget(forget)
 
-        h_tilde_t = self.rnns_w[i](h_tilde_t) + self.hiddens_u[i](torch.mul(reset_act, prevs[i]))
+        h_tilde_t = self.rnns_w[i](h_tilde_t) + self.hiddens_u[i](torch.mul(reset_act, hidden[i]))
         h_tilde_t_act = self.act_hidden(h_tilde_t)
-        # print("forget_act", forget_act.size())
-        h_t = torch.mul((torch.ones(self.batch_size, self.hidden_size, device=self.device) - forget_act), prevs[i]) \
+
+        h_t = torch.mul((torch.ones(self.batch_size, self.hidden_size, device=self.device) - forget_act), hidden[i]) \
                 + torch.mul(forget_act, h_tilde_t_act)
-        # print("h_t", h_t.size())
+
         new_prevs.append(h_t)
 
         h_t_drop = self.drop(h_t)
@@ -446,12 +448,15 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
         x_out = self.out(h_t_drop)
 
-      prevs = new_prevs
       logits_list.append(x_out)
+      hidden = new_prevs
+      self.hidden_dict[t] = new_prevs
+      for i in range(self.num_layers):
+        self.hidden_dict[t][i].retain_grad()
 
-    # if t == inputs.size()[0] - 1:  # If in last timestep
     hidden = torch.cat(final_hidden_states)
     logits = torch.cat(logits_list)
+
 
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
@@ -471,8 +476,9 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
                     shape: (generated_seq_len, batch_size)
     """
     logits_list = []
+    one_input = input
     for t in range(generated_seq_len):  # For each timestep
-      one_input = input
+
       x = self.em(one_input)
       x = self.drop(x)
 
@@ -505,6 +511,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         final_hidden_states.append(h_t_drop)
 
         x_out = self.out(h_t_drop)
+      one_input = x_out
+      one_input = torch.distributions.Categorical(logits=one_input).sample()
 
       prevs = new_prevs
       logits_list.append(x_out)
