@@ -87,23 +87,13 @@ class MultiHeadedAttention(nn.Module):
         dropout: probability of DROPPING units
         """
         super(MultiHeadedAttention, self).__init__()
-        # This sets the size of the keys, values, and queries (self.d_k) to all
-        # be equal to the number of output units divided by the number of heads.
         self.n_units = n_units
         self.n_heads = n_heads
         self.d_k = self.n_units // self.n_heads
-        # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
         self.k = np.sqrt(1/self.n_units)
 
-        # TODO: create/initialize any necessary parameters or layers
-        # Initialize all weights and biases uniformly in the range [-k, k],
-        # where k is the square root of 1/n_units.
-        # Note: the only Pytorch modules you are allowed to use are nn.Linear
-        # and nn.Dropout
-
-        # ETA: you can also use softmax
         self.W_0 = nn.Linear(self.d_k * self.n_heads, self.n_units)
         self.lin = nn.Linear(self.n_units, self.n_units)
         # initialize to [-k,k]
@@ -113,14 +103,6 @@ class MultiHeadedAttention(nn.Module):
         torch.nn.init.uniform_(self.lin.bias, -self.k, self.k)
 
     def forward(self, query, key, value, mask=None):
-        # TODO: implement the masked multi-head attention.
-        # query, key, and value correspond to Q, K, and V in the latex, and
-        # they all have size: (batch_size, seq_len, self.n_units)
-        # mask has size: (batch_size, seq_len, seq_len)
-        # As described in the .tex, apply input masking to the softmax
-        # generating the "attention values" (i.e. A_i in the .tex)
-        # Also apply dropout to the attention values.
-
         # generate a module list of attention heads
         self.attention_heads = nn.ModuleList([
             SingleAttentionHead(self.n_heads, self.n_units, self.k, dropout=0.35) for _ in range(self.n_heads)])
@@ -130,9 +112,10 @@ class MultiHeadedAttention(nn.Module):
         # concat tensors in list
         x2 = torch.cat(att, dim=2)
         # multiply by W_0
+        x2 = self.W_0(x2)
         # linear layer
         x = self.lin(x2)
-        return x # size: (batch_size, seq_len, self.n_units)
+        return x
 
 
 class SingleAttentionHead(nn.Module):
@@ -153,10 +136,12 @@ class SingleAttentionHead(nn.Module):
         torch.nn.init.uniform_(self.W_Q.bias, -k, k)
         torch.nn.init.uniform_(self.W_K.bias, -k, k)
         torch.nn.init.uniform_(self.W_V.bias, -k, k)
+        # send these parameters to the GPU
         self.W_Q = self.W_Q.to(device)
         self.W_K = self.W_K.to(device)
         self.W_V = self.W_V.to(device)
         self.drop = self.drop.to(device)
+
     def forward(self, query, key, value, mask=None):
         # pass through the weight matrices
         K = self.W_K(key)
@@ -165,14 +150,12 @@ class SingleAttentionHead(nn.Module):
         # generate the argument for the softmax
         arg = torch.bmm(Q, K.transpose(1, 2))
         arg = arg / math.sqrt(self.d_k)
-        # flip  and apply the mask with modified softmax
-        # mask = (1.0 - mask.float()).abs()
+        # apply mask
         mask = mask.float()
         arg = arg * mask - float(10e-9) * (1 - mask)
         arg = F.softmax(arg)
         H = torch.bmm(arg, V)
         H = self.drop(H)
-        # print('H is ', H.size())
         return H
 
 
