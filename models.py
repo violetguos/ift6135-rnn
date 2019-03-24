@@ -184,9 +184,11 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
             logits.append(x_out)
         # Set current step to previous step for next loop
         prevs = new_prevs
+        # Save gradients
         self.hidden_dict[t] = new_prevs
         for i in range(self.num_layers):
             self.hidden_dict[t][i].retain_grad()
+
       # If in first timestep
       else:
         prevs = []
@@ -202,11 +204,10 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
           if i == len(self.hiddens)-1:
             x_out = self.out(x_drop)
             logits.append(x_out)
+        # Save gradients
         self.hidden_dict[t] = prevs
         for i in range(self.num_layers):
             self.hidden_dict[t][i].retain_grad()
-
-
 
       # If in last timestep
       if t == inputs.size()[0]-1:
