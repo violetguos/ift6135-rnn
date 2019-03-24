@@ -71,6 +71,13 @@ import torch.nn.functional as F
 # TODO: implement this class
 
 
+if torch.cuda.is_available():
+    print("Using the GPU")
+    device = torch.device("cuda")
+else:
+    print("WARNING: You are about to run on cpu, and this will likely run out \
+        of memory. \n You can try setting batch_size=1 to reduce memory usage")
+    device = torch.device("cpu")
 
 class MultiHeadedAttention(nn.Module):
     def __init__(self, n_heads, n_units, dropout=0.35):
@@ -88,7 +95,7 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units
-        k = np.sqrt(1/self.d_k)
+        self.k = np.sqrt(1/self.n_units)
 
         # TODO: create/initialize any necessary parameters or layers
         # Initialize all weights and biases uniformly in the range [-k, k],
@@ -97,24 +104,13 @@ class MultiHeadedAttention(nn.Module):
         # and nn.Dropout
 
         # ETA: you can also use softmax
-        self.W_Q = nn.Linear(self.n_units, self.d_k)
-        self.W_K = nn.Linear(self.n_units, self.d_k)
-        self.W_V = nn.Linear(self.n_units, self.d_k)
         self.W_0 = nn.Linear(self.d_k * self.n_heads, self.n_units)
         self.lin = nn.Linear(self.n_units, self.n_units)
-        self.drop = nn.Dropout(dropout)
         # initialize to [-k,k]
-
-        torch.nn.init.uniform_(self.W_Q.weight, -k, k)
-        torch.nn.init.uniform_(self.W_K.weight, -k, k)
-        torch.nn.init.uniform_(self.W_V.weight, -k, k)
-        torch.nn.init.uniform_(self.W_0.weight, -k, k)
-        torch.nn.init.uniform_(self.lin.weight, -k, k)
-        torch.nn.init.uniform_(self.W_Q.bias, -k, k)
-        torch.nn.init.uniform_(self.W_K.bias, -k, k)
-        torch.nn.init.uniform_(self.W_V.bias, -k, k)
-        torch.nn.init.uniform_(self.W_0.bias, -k, k)
-        torch.nn.init.uniform_(self.lin.bias, -k, k)
+        torch.nn.init.uniform_(self.W_0.weight, -self.k, self.k)
+        torch.nn.init.uniform_(self.lin.weight, -self.k, self.k)
+        torch.nn.init.uniform_(self.W_0.bias, -self.k, self.k)
+        torch.nn.init.uniform_(self.lin.bias, -self.k, self.k)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -125,34 +121,61 @@ class MultiHeadedAttention(nn.Module):
         # generating the "attention values" (i.e. A_i in the .tex)
         # Also apply dropout to the attention values.
 
+        # generate a module list of attention heads
+        self.attention_heads = nn.ModuleList([
+            SingleAttentionHead(self.n_heads, self.n_units, self.k, dropout=0.35) for _ in range(self.n_heads)])
         # run attention for each head and store in a list
-        att = [attention(self, query, key, value, mask=mask)
-                for i in range(self.n_heads)]
+        att = [SingleAttentionHead(query, key, value, mask=mask)
+                for i, SingleAttentionHead in enumerate(self.attention_heads)]
         # concat tensors in list
         x2 = torch.cat(att, dim=2)
         # multiply by W_0
-        x = self.W_0(x2)
         # linear layer
-        x = self.lin(x)
+        x = self.lin(x2)
         return x # size: (batch_size, seq_len, self.n_units)
 
 
-def attention(self, query, key, value, mask=None):
-    # pass through the weight matrices
-    K = self.W_K(key)
-    Q = self.W_Q(query)
-    V = self.W_V(value)
-    # generate the argument for the softmax
-    arg = torch.bmm(Q, K.transpose(1, 2))
-    arg = arg / math.sqrt(self.d_k)
-    # flip  and apply the mask with modified softmax
-    mask = (1.0 - mask.float()).abs()
-    arg = arg * mask - float(10e-9) * (1 - mask)
-    arg = F.softmax(arg)
-    H = torch.bmm(arg, V)
-    H = self.drop(H)
-    # print('H is ', H.size())
-    return H
+class SingleAttentionHead(nn.Module):
+    def __init__(self, n_heads, n_units, k, dropout=0.35):
+        super(SingleAttentionHead, self).__init__()
+        self.n_units = n_units
+        self.n_heads = n_heads
+        self.d_k = self.n_units // self.n_heads
+        # create weight matrices for each head
+        self.W_Q = nn.Linear(self.n_units, self.d_k)
+        self.W_K = nn.Linear(self.n_units, self.d_k)
+        self.W_V = nn.Linear(self.n_units, self.d_k)
+        self.drop = nn.Dropout(dropout)
+        # initialize the matrices
+        torch.nn.init.uniform_(self.W_Q.weight, -k, k)
+        torch.nn.init.uniform_(self.W_K.weight, -k, k)
+        torch.nn.init.uniform_(self.W_V.weight, -k, k)
+        torch.nn.init.uniform_(self.W_Q.bias, -k, k)
+        torch.nn.init.uniform_(self.W_K.bias, -k, k)
+        torch.nn.init.uniform_(self.W_V.bias, -k, k)
+        self.W_Q = self.W_Q.to(device)
+        self.W_K = self.W_K.to(device)
+        self.W_V = self.W_V.to(device)
+        self.drop = self.drop.to(device)
+    def forward(self, query, key, value, mask=None):
+        # pass through the weight matrices
+        K = self.W_K(key)
+        Q = self.W_Q(query)
+        V = self.W_V(value)
+        # generate the argument for the softmax
+        arg = torch.bmm(Q, K.transpose(1, 2))
+        arg = arg / math.sqrt(self.d_k)
+        # flip  and apply the mask with modified softmax
+        # mask = (1.0 - mask.float()).abs()
+        mask = mask.float()
+        arg = arg * mask - float(10e-9) * (1 - mask)
+        arg = F.softmax(arg)
+        H = torch.bmm(arg, V)
+        H = self.drop(H)
+        # print('H is ', H.size())
+        return H
+
+
 
 
 # ----------------------------------------------------------------------------------
