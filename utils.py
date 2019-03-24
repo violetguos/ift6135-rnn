@@ -151,7 +151,7 @@ def ptb_iterator(raw_data, batch_size, num_steps):
         yield (x, y)
 
 
-def save_gradient(loss, hiddens):
+def save_gradient(loss, hidden):
     """
     tired friday coding, we can compute the grad and save it to a numpy npz
     !Not tested version!
@@ -159,9 +159,11 @@ def save_gradient(loss, hiddens):
     :param hiddens:
     :return:
     """
-    print('loss:', loss)
-    print('hidden:', hiddens)
-    grad = torch.autograd.grad(loss, hiddens, retain_graph=True)
+    print(loss)
+    hidden = hidden.retain_grad()
+    print(hidden)
+
+    grad = torch.autograd.grad(loss, hidden, retain_graph=True, allow_unused=True)
     print(grad)
     grad_res = grad.numpy()
     #np.save(os.path.join('.', 'avg_5_2.npy'), grad_res)
