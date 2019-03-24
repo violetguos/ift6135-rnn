@@ -61,8 +61,9 @@ def gen_valid_arch_ppl_epoch(arch_ppls, save_dir):
             epochs = range(len(valid_ppls))
             c = next(color)
             plt.plot(epochs, valid_ppls, color=c)
-        plt.yscale('log')
-        plt.xlim(left=0, right=50)
+        if arch.lower() == 'rnn':
+            plt.yscale('log')
+            plt.xlim(left=0, right=50)
         plt.title('Perplexity over epochs')
         plt.xlabel('Epoch')
         plt.ylabel('Perplexity (PPL)')
@@ -78,8 +79,9 @@ def gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, save_dir):
             walltimes = arch_walltimes[arch][i]
             c = next(color)
             plt.plot(walltimes, valid_ppls, color=c)
-        plt.yscale('log')
-        plt.xlim(left=0, right=20000)
+        if arch.lower() == 'rnn':
+            plt.yscale('log')
+            plt.xlim(left=0, right=20000)
         plt.title('Perplexity over wall-clock-time')
         plt.xlabel('Wall-clock-time (s)')
         plt.ylabel('Perplexity (PPL)')
@@ -130,7 +132,11 @@ if __name__ == '__main__':
     subdirs = next(os.walk('.'))[1]
     for subdir in subdirs:
         if 'exp' in subdir:
-            exp_num = subdir[-1]    # Since dirs are of format exp1, exp2...
+            # Hack
+            if len(subdir) == 4:
+                exp_num = subdir[-1]    # Since dirs are of format exp1, exp2...
+            else:
+                exp_num = subdir[-2:]   # Since dirs are of format exp11, exp12, ...
 
             # Generate training + validation PPL plots over epochs for all experiments
             if args.task == 'epochs':
