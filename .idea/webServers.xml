@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="91f38edc-d5b6-40d3-9f14-28037742095d" name="helios" url="http://localhost">
+        <fileTransfer host="localhost" port="4444" rootFolder="/rap/jvb-000-aa/COURS2019/etudiants/user24" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+          <option name="port" value="4444" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
