@@ -4,6 +4,7 @@ Run it from the root of the repo.
 '''
 
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import cm
 import numpy as np
 import argparse
 import os
@@ -20,8 +21,6 @@ def get_walltimes(log_path):
             walltimes.append(time)
             run_time = time
         else:
-            # print('time is',time)
-            # print('prev time is',prev_time)
             run_time = time + run_time
             walltimes.append(run_time)
     return walltimes
@@ -46,8 +45,6 @@ def gen_train_valid_ppl_walltime(x, walltimes, save_dir, exp_num):
     valid_ppls = x['val_ppls']
     plt.plot(walltimes, train_ppls, color='red', label='Training PPL')
     plt.plot(walltimes, valid_ppls, color='blue', label='Validation PPL')
-    print('exp number', exp_num)
-    print('walltimes are' ,walltimes)
     plt.title('Perplexity over wall-clock-time')
     plt.xlabel('Wall-clock-time (s)')
     plt.ylabel('Perplexity (PPL)')
@@ -58,10 +55,15 @@ def gen_train_valid_ppl_walltime(x, walltimes, save_dir, exp_num):
 
 def gen_valid_arch_ppl_epoch(arch_ppls, save_dir):
     for arch, xs in arch_ppls.items():
+        color = iter(cm.rainbow(np.linspace(0,1,len(xs))))
         for x in xs:
             valid_ppls = x['val_ppls']
             epochs = range(len(valid_ppls))
-            plt.plot(epochs, valid_ppls, color='blue')
+            c = next(color)
+            plt.plot(epochs, valid_ppls, color=c)
+        if arch.lower() == 'rnn':
+            plt.yscale('log')
+            plt.xlim(left=0, right=50)
         plt.title('Perplexity over epochs')
         plt.xlabel('Epoch')
         plt.ylabel('Perplexity (PPL)')
@@ -71,10 +73,15 @@ def gen_valid_arch_ppl_epoch(arch_ppls, save_dir):
 
 def gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, save_dir):
     for arch, xs in arch_ppls.items():
+        color = iter(cm.rainbow(np.linspace(0,1,len(xs))))
         for i, x in enumerate(xs):
             valid_ppls = x['val_ppls']
             walltimes = arch_walltimes[arch][i]
-            plt.plot(walltimes, valid_ppls, color='blue')
+            c = next(color)
+            plt.plot(walltimes, valid_ppls, color=c)
+        if arch.lower() == 'rnn':
+            plt.yscale('log')
+            plt.xlim(left=0, right=20000)
         plt.title('Perplexity over wall-clock-time')
         plt.xlabel('Wall-clock-time (s)')
         plt.ylabel('Perplexity (PPL)')
@@ -125,7 +132,11 @@ if __name__ == '__main__':
     subdirs = next(os.walk('.'))[1]
     for subdir in subdirs:
         if 'exp' in subdir:
-            exp_num = subdir[-1]    # Since dirs are of format exp1, exp2...
+            # Hack
+            if len(subdir) == 4:
+                exp_num = subdir[-1]    # Since dirs are of format exp1, exp2...
+            else:
+                exp_num = subdir[-2:]   # Since dirs are of format exp11, exp12, ...
 
             # Generate training + validation PPL plots over epochs for all experiments
             if args.task == 'epochs':
