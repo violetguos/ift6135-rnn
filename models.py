@@ -124,12 +124,12 @@ class SingleAttentionHead(nn.Module):
         self.n_units = n_units
         self.n_heads = n_heads
         self.d_k = self.n_units // self.n_heads
-        # create weight matrices for each head
+        # create layers for each head
         self.W_Q = nn.Linear(self.n_units, self.d_k)
         self.W_K = nn.Linear(self.n_units, self.d_k)
         self.W_V = nn.Linear(self.n_units, self.d_k)
         self.drop = nn.Dropout(dropout)
-        # initialize the matrices
+        # initialize the layers
         torch.nn.init.uniform_(self.W_Q.weight, -k, k)
         torch.nn.init.uniform_(self.W_K.weight, -k, k)
         torch.nn.init.uniform_(self.W_V.weight, -k, k)
@@ -143,7 +143,7 @@ class SingleAttentionHead(nn.Module):
         self.drop = self.drop.to(device)
 
     def forward(self, query, key, value, mask=None):
-        # pass through the weight matrices
+        # pass through the K,Q and V layers
         K = self.W_K(key)
         Q = self.W_Q(query)
         V = self.W_V(value)
