@@ -49,7 +49,7 @@
 #      perplexities:
 #                  RNN: train:  120  val: 157
 #                  GRU: train:   65  val: 104
-#          TRANSFORMER:  train:  77  val: 152
+#          TRANSFORMER:  train:  67  val: 146
 #    - For Problem 4.2 (exploration of optimizers), you will make use of the 
 #      experiments from 4.1, and should additionally run the following experiments:
 #          --model=RNN --optimizer=SGD --initial_lr=0.0001 --batch_size=20 --seq_len=35 --hidden_size=1500 --num_layers=2 --dp_keep_prob=0.35 
@@ -88,11 +88,12 @@ import torch.nn
 from torch.autograd import Variable
 import torch.nn as nn
 import numpy
+import copy
 np = numpy
 
 # NOTE ==============================================
 # This is where your models are imported
-from models import RNN, GRU 
+# from models import RNN, GRU
 from models import make_model as TRANSFORMER
 
 
@@ -123,7 +124,7 @@ parser.add_argument('--hidden_size', type=int, default=200,
 parser.add_argument('--save_best', action='store_true',
                     help='save the model for the best validation performance')
 parser.add_argument('--num_layers', type=int, default=2,
-                    help='number of LSTM layers')
+                    help='number of hidden layers in RNN/GRU, or number of transformer blocks in TRANSFORMER')
 
 # Other hyperparameters you may want to tune in your exploration
 parser.add_argument('--emb_size', type=int, default=200,
@@ -131,7 +132,8 @@ parser.add_argument('--emb_size', type=int, default=200,
 parser.add_argument('--num_epochs', type=int, default=40,
                     help='number of epochs to stop after')
 parser.add_argument('--dp_keep_prob', type=float, default=0.35,
-                    help='dropout *keep* probability (dp_keep_prob=0 means no dropout')
+                    help='dropout *keep* probability. drop_prob = 1-dp_keep_prob \
+                    (dp_keep_prob=1 means no dropout)')
 
 # Arguments that you may want to make use of / implement more code for
 parser.add_argument('--debug', action='store_true') 
@@ -158,7 +160,7 @@ argsdict['code_file'] = sys.argv[0]
 # Use the model, optimizer, and the flags passed to the script to make the 
 # name for the experimental dir
 print("\n########## Setting Up Experiment ######################")
-flags = [flag.lstrip('--') for flag in sys.argv[1:]]
+flags = [flag.lstrip('--').replace('/', '').replace('\\', '') for flag in sys.argv[1:]]
 experiment_path = os.path.join(args.save_dir+'_'.join([argsdict['model'],
                                          argsdict['optimizer']] 
                                          + flags))
@@ -194,7 +196,7 @@ else:
 
 ###############################################################################
 #
-# DATA LOADING & PROCESSING
+# LOADING & PROCESSING
 #
 ###############################################################################
 
@@ -242,6 +244,7 @@ def ptb_iterator(raw_data, batch_size, num_steps):
         data[i] = raw_data[batch_len * i:batch_len * (i + 1)]
 
     epoch_size = (batch_len - 1) // num_steps
+    print('epoch size:', epoch_size)
 
     if epoch_size == 0:
         raise ValueError("epoch_size == 0, decrease batch_size or num_steps")
@@ -254,7 +257,7 @@ def ptb_iterator(raw_data, batch_size, num_steps):
 
 class Batch:
     "Data processing for the transformer. This class adds a mask to the data."
-    def __init__(self, x, pad=0):
+    def __init__(self, x, pad=-1):
         self.data = x
         self.mask = self.make_mask(self.data, pad)
     
@@ -320,7 +323,7 @@ elif args.model == 'TRANSFORMER':
 else:
   print("Model type not recognized.")
 
-model.to(device)
+model = model.to(device)
 
 # LOSS FUNCTION
 loss_fn = nn.CrossEntropyLoss()
@@ -369,7 +372,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     start_time = time.time()
     if args.model != 'TRANSFORMER':
         hidden = model.init_hidden()
-        hidden.to(device)
+        hidden = hidden.to(device)
     costs = 0.0
     iters = 0
     losses = []
@@ -380,7 +383,6 @@ def run_epoch(model, data, is_train=False, lr=1.0):
             batch = Batch(torch.from_numpy(x).long().to(device))
             model.zero_grad()
             outputs = model.forward(batch.data, batch.mask).transpose(1,0)
-            #print ("outputs.shape", outputs.shape)
         else:
             inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)#.cuda()
             model.zero_grad()
@@ -412,7 +414,7 @@ def run_epoch(model, data, is_train=False, lr=1.0):
                         p.data.add_(-lr, p.grad.data)
             if step % (epoch_size // 10) == 10:
                 print('step: '+ str(step) + '\t' \
-                    + 'loss: '+ str(costs) + '\t' \
+                    + "loss (sum over all examples' seen this epoch):" + str(costs) + '\t' \
                     + 'speed (wps):' + str(iters * model.batch_size / (time.time() - start_time)))
     return np.exp(costs / iters), losses
 
