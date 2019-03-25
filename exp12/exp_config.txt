@@ -1,0 +1,17 @@
+batch_size    64
+code_file    ptb-lm.py
+data    data
+debug    False
+dp_keep_prob    0.9
+emb_size    200
+evaluate    False
+hidden_size    512
+initial_lr    1e-05
+model    RNN
+num_epochs    200
+num_layers    2
+optimizer    ADAM
+save_best    True
+save_dir    exp12RNN_ADAM_model=RNN_optimizer=ADAM_initial_lr=0.00001_batch_size=64_seq_len=35_hidden_size=512_num_epochs_200_num_layers=2_dp_keep_prob=0.9_save_best_save_dir_exp12_1
+seed    1111
+seq_len    35
