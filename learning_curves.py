@@ -91,10 +91,12 @@ def gen_valid_arch_ppl_walltime(arch_ppls, arch_walltimes, save_dir):
 
 def gen_valid_opt_ppl_epoch(opt_ppls, save_dir):
     for opt, xs in opt_ppls.items():
+        color = iter(cm.rainbow(np.linspace(0,1,len(xs))))
         for x in xs:
             valid_ppls = x['val_ppls']
             epochs = range(len(valid_ppls))
-            plt.plot(epochs, valid_ppls, color='blue')
+            c = next(color)
+            plt.plot(epochs, valid_ppls, color=c)
         plt.title('Perplexity over epochs')
         plt.xlabel('Epoch')
         plt.ylabel('Perplexity (PPL)')
@@ -104,10 +106,12 @@ def gen_valid_opt_ppl_epoch(opt_ppls, save_dir):
 
 def gen_valid_opt_ppl_walltime(opt_ppls, opt_walltimes, save_dir):
     for opt, xs in opt_ppls.items():
+        color = iter(cm.rainbow(np.linspace(0,1,len(xs))))
         for i, x in enumerate(xs):
             valid_ppls = x['val_ppls']
             walltimes = opt_walltimes[opt][i]
-            plt.plot(walltimes, valid_ppls, color='blue')
+            c = next(color)
+            plt.plot(walltimes, valid_ppls, color=c)
         plt.title('Perplexity over wall-clock-time')
         plt.xlabel('Wall-clock-time (s)')
         plt.ylabel('Perplexity (PPL)')
